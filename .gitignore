@@ -1,0 +1,52 @@
+*
+
+# Repository root
+!/.dockerignore
+!/.gitignore
+!/.nf-core.yml
+!/Containerfile
+!/CONTEXT.md
+!/LICENSE
+!/README.md
+!/main.nf
+!/mise.lock
+!/mise.toml
+!/modules.json
+!/nextflow.config
+!/nextflow_schema.json
+!/nf-test.config
+!/pixi.lock
+!/pyproject.toml
+!/uv.lock
+
+# Mise file tasks
+!/.mise/
+!/.mise/pixi-activate.sh
+!/.mise/tasks/
+!/.mise/tasks/check
+!/.mise/tasks/ci-validate
+!/.mise/tasks/container-build
+!/.mise/tasks/container-test
+!/.mise/tasks/environment-install
+!/.mise/tasks/locks-check
+!/.mise/tasks/nextflow-config-check
+!/.mise/tasks/test
+!/.mise/tasks/tools-check
+
+# GitHub automation
+!/.github/
+!/.github/workflows/
+!/.github/workflows/ci.yml
+!/.github/workflows/release.yml
+
+# Reused nf-core components
+!/subworkflows/
+!/subworkflows/nf-core/
+!/subworkflows/nf-core/utils_nfschema_plugin/
+!/subworkflows/nf-core/utils_nfschema_plugin/main.nf
+!/subworkflows/nf-core/utils_nfschema_plugin/meta.yml
+
+# Scaffold tests
+!/tests/
+!/tests/nextflow.config
+!/tests/scaffold.nf.test

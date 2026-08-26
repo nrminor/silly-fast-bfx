@@ -1,0 +1,17 @@
+.agents/
+.git/
+.jj/
+.mise/
+.nextflow/
+.nf-test/
+.pixi/
+.venv/
+
+*.bak-*
+*.backup
+*.log
+*.sif
+
+.DS_Store
+results/
+work/

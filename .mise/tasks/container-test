@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#MISE description="Smoke-test the local process monoimage"
+set -euo pipefail
+
+docker run --rm nrminor/silly-fast-bfx:dev bash -euo pipefail -c '
+  python -c "import Bio, polars"
+  skope --version
+  deacon --version
+  sylph --version
+  bqtools --version
+  for excluded in mise pixi uv cargo nextflow nf-test; do
+    ! command -v "$excluded" >/dev/null
+  done
+'

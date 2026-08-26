@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Build the local process monoimage"
+set -euo pipefail
+
+docker build --file Containerfile --tag nrminor/silly-fast-bfx:dev .

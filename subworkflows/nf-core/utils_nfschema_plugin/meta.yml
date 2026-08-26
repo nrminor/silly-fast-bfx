@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "utils_nfschema_plugin"
+description: Run nf-schema to validate parameters and create a summary of changed parameters
+keywords:
+  - validation
+  - JSON schema
+  - plugin
+  - parameters
+  - summary
+components: []
+input:
+  - input_workflow:
+      type: object
+      description: The workflow object used to create the parameter summary.
+  - validate_params:
+      type: boolean
+      description: Validate parameters and error if invalid.
+  - parameters_schema:
+      type: string
+      description: Optional path to the parameter JSON schema.
+  - help:
+      type: boolean, string
+      description: Show the help message and exit.
+  - help_full:
+      type: boolean
+      description: Show the full help message and exit.
+  - show_hidden:
+      type: boolean
+      description: Show hidden parameters in help.
+  - before_text:
+      type: string
+      description: Text shown before help and summaries.
+  - after_text:
+      type: string
+      description: Text shown after help and summaries.
+  - command:
+      type: string
+      description: Example pipeline command.
+  - cli_typecast:
+      type: boolean
+      description: Whether to typecast command-line parameters.
+output:
+  - dummy_emit:
+      type: boolean
+      description: Dummy output required by nf-core subworkflow linting.
+authors:
+  - "@nvnieuwk"
+maintainers:
+  - "@nvnieuwk"

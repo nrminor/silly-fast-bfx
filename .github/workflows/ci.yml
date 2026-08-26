@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Locked checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up locked project tools
+        uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.6
+          cache: true
+          bootstrap: true
+          bootstrap_skip: repos
+          bootstrap_args: --yes
+
+      - name: Run checks
+        run: mise run check
+
+  monoimage:
+    name: Build and smoke-test monoimage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build monoimage
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Containerfile
+          push: false
+          load: true
+          tags: nrminor/silly-fast-bfx:ci
+          cache-from: type=gha,scope=silly-fast-bfx-monoimage
+          cache-to: type=gha,mode=max,scope=silly-fast-bfx-monoimage
+
+      - name: Smoke-test monoimage
+        run: |
+          docker run --rm nrminor/silly-fast-bfx:ci \
+            bash -euo pipefail -c '
+              python -c "import Bio, polars"
+              skope --version
+              deacon --version
+              sylph --version
+              bqtools --version
+              for excluded in mise pixi uv cargo nextflow nf-test; do
+                ! command -v "$excluded" > /dev/null
+              done
+            '

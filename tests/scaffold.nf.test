@@ -1,0 +1,26 @@
+nextflow_pipeline {
+    name "Test the project scaffold"
+    script "../main.nf"
+    tag "scaffold"
+
+    test("shows help") {
+        when {
+            options '--help'
+        }
+
+        then {
+            assert workflow.success
+        }
+    }
+
+    test("shows the version") {
+        when {
+            options '--version'
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.stdout.join('\n').contains('nrminor/silly-fast-bfx v0.1.0.dev0')
+        }
+    }
+}

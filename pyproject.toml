@@ -1,0 +1,30 @@
+[project]
+name = "silly-fast-bfx"
+version = "0.1.0.dev0"
+description = "Extremely fast metagenomics"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "biopython==1.87",
+  "polars==1.43.2",
+]
+
+[dependency-groups]
+dev = [
+  "nf-core==4.1.0",
+]
+
+[tool.pixi.workspace]
+channels = ["conda-forge", "bioconda"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
+requires-pixi = ">=0.77.1,<0.78"
+
+[tool.pixi.dependencies]
+python = "3.12.*"
+
+[tool.pixi.feature.dev.dependencies]
+nextflow = "==26.04.6"
+nf-test = "==0.9.5"
+
+[tool.pixi.environments]
+default = { features = [], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }

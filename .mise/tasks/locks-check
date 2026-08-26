@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Verify the uv and Pixi locks"
+set -euo pipefail
+
+uv lock --check
+pixi install --environment dev --locked

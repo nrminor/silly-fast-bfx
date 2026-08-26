@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nrminor/silly-fast-bfx/main/nextflow_schema.json",
+  "title": "nrminor/silly-fast-bfx pipeline parameters",
+  "description": "Extremely fast metagenomics",
+  "type": "object",
+  "$defs": {
+    "output_options": {
+      "title": "Output options",
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "string",
+          "format": "path",
+          "description": "Directory for published pipeline results."
+        }
+      }
+    },
+    "generic_options": {
+      "title": "Generic options",
+      "type": "object",
+      "properties": {
+        "monoimage": {
+          "type": "string",
+          "description": "Container image used by every pipeline process.",
+          "hidden": true
+        },
+        "help": {
+          "type": ["boolean", "string"],
+          "description": "Display the help message."
+        },
+        "help_full": {
+          "type": "boolean",
+          "description": "Display the full help message."
+        },
+        "show_hidden": {
+          "type": "boolean",
+          "description": "Display hidden parameters in the help message."
+        },
+        "validate_params": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate parameters against the pipeline schema.",
+          "hidden": true
+        },
+        "version": {
+          "type": "boolean",
+          "description": "Display the pipeline version.",
+          "hidden": true
+        }
+      }
+    }
+  },
+  "allOf": [
+    {"$ref": "#/$defs/output_options"},
+    {"$ref": "#/$defs/generic_options"}
+  ]
+}

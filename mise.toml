@@ -1,0 +1,55 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+
+min_version = "2026.8.2"
+
+[settings]
+lockfile = true
+
+[settings.cargo]
+binstall = false
+
+[env]
+_.source = { path = ".mise/pixi-activate.sh", tools = true }
+
+[tool_alias]
+skope = "github:bede/skope"
+deacon = "github:bede/deacon"
+sylph = "cargo:https://github.com/bluenote-1577/sylph"
+bqtools = "cargo:bqtools"
+
+[tools]
+pixi = "0.77.1"
+uv = "0.12.5"
+rust = "1.97.1"
+"github:bahdotsh/wrkflw" = "0.8.0"
+skope = { version = "0.4.0", bin = "skope" }
+deacon = { version = "0.17.0", bin = "deacon" }
+sylph = { version = "tag:v0.9.0", bin = "sylph", locked = true }
+bqtools = { version = "0.5.14", locked = true }
+
+[bootstrap.packages]
+"brew:cmake" = { version = "latest", os = "macos" }
+"apt:build-essential" = { version = "latest", os = "linux" }
+"apt:clang" = { version = "latest", os = "linux" }
+"apt:cmake" = { version = "latest", os = "linux" }
+"apt:libbz2-dev" = { version = "latest", os = "linux" }
+"apt:libcurl4-openssl-dev" = { version = "latest", os = "linux" }
+"apt:liblzma-dev" = { version = "latest", os = "linux" }
+"apt:libssl-dev" = { version = "latest", os = "linux" }
+"apt:pkg-config" = { version = "latest", os = "linux" }
+"apt:zlib1g-dev" = { version = "latest", os = "linux" }
+
+[bootstrap.hooks]
+pre-tools = [
+  "command -v cmake >/dev/null",
+  "command -v cc >/dev/null || { echo 'A C compiler is required; on macOS install the Xcode Command Line Tools.' >&2; exit 1; }",
+]
+post-tools = "./.mise/tasks/environment-install"
+
+[bootstrap.repos]
+".agents/repos/skope" = { url = "https://github.com/bede/skope.git" }
+".agents/repos/deacon" = { url = "https://github.com/bede/deacon.git" }
+".agents/repos/sylph" = { url = "https://github.com/bluenote-1577/sylph.git" }
+".agents/repos/bqtools" = { url = "https://github.com/ArcInstitute/bqtools.git" }
+".agents/repos/nvd" = { url = "https://github.com/dholab/nvd.git" }
+".agents/repos/baits" = { url = "https://github.com/dholab/baits.git" }

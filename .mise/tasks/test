@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run the nf-test suite"
+set -euo pipefail
+
+pixi run --environment dev nf-test test

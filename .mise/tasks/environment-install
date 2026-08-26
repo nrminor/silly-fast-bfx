@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Install the locked Pixi development and uv runtime environments"
+set -euo pipefail
+
+pixi install --environment dev --locked
+uv sync --locked --no-dev

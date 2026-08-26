@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Verify Python and standalone runtime tools"
+set -euo pipefail
+
+uv run --locked --no-dev python -c "import Bio, polars"
+"$(mise where skope)/skope" --version
+"$(mise where deacon)/deacon" --version
+"$(mise where sylph)/bin/sylph" --version
+"$(mise where bqtools)/bin/bqtools" --version

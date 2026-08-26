@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Render every supported Nextflow configuration"
+set -euo pipefail
+
+pixi run --environment dev nextflow config -flat >/dev/null
+pixi run --environment dev nextflow config -profile test -flat >/dev/null
+pixi run --environment dev nextflow config -profile docker -flat >/dev/null
+pixi run --environment dev nextflow config -profile docker,test -flat >/dev/null
+pixi run --environment dev nextflow config -profile apptainer -flat >/dev/null
+pixi run --environment dev nextflow config -profile apptainer,test -flat >/dev/null
