@@ -1,0 +1,39 @@
+nextflow_process {
+    name "Build Deacon index process"
+    script "../modules/local/build_deacon_index/main.nf"
+    process "BUILD_DEACON_INDEX"
+    tag "modules"
+    tag "modules_local"
+
+    test("builds an index from a sufficiently long FASTA") {
+        when {
+            process {
+                """input[0] = [[observed_sha256: '693e1d621be85c13192a492a219e7f89d3991843ae6ccdd64fd7e0d24a0bc98c', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/deacon/reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.indexes[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].settings == [kmer_length: 31, window_size: 15] },
+                { assert file(output[1]).name == 'deacon.idx' },
+                { assert file(output[1]).size() > 0 },
+            )
+        }
+    }
+
+    test("stubs an index") {
+        when {
+            process {
+                """input[0] = [[observed_sha256: '693e1d621be85c13192a492a219e7f89d3991843ae6ccdd64fd7e0d24a0bc98c', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/deacon/reference.fa")]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            assert process.success
+            assert file(process.out.indexes[0][1]).text == 'stub index'
+        }
+    }
+}

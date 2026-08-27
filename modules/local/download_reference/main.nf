@@ -1,7 +1,3 @@
-def downloadShellQuote(value) {
-    "'${value.toString().replace("'", "'\"'\"'")}'"
-}
-
 process DOWNLOAD_REFERENCE {
     tag "${logical_basename}"
     label 'process_low'
@@ -10,7 +6,7 @@ process DOWNLOAD_REFERENCE {
     tuple val(location), val(logical_basename)
 
     output:
-    tuple val(location), val(logical_basename), path("${logical_basename}"), emit: artifacts
+    tuple val(location), path("${logical_basename}"), emit: artifacts
     path 'versions.yml', topic: versions
 
     when:
@@ -19,15 +15,15 @@ process DOWNLOAD_REFERENCE {
     script:
     """
     download_reference.py \
-        --url ${downloadShellQuote(location)} \
-        --output ${downloadShellQuote(logical_basename)} \
+        --url "${location}" \
+        --output "${logical_basename}" \
         --versions-output versions.yml \
-        --process ${downloadShellQuote(task.process)}
+        --process ${task.process}
     """
 
     stub:
     """
-    printf 'abc' > ${downloadShellQuote(logical_basename)}
+    printf 'abc' > "${logical_basename}"
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: "stub"

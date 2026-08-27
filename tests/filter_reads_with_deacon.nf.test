@@ -1,0 +1,126 @@
+nextflow_process {
+    name "Filter reads with Deacon process"
+    script "../modules/local/filter_reads_with_deacon/main.nf"
+    process "FILTER_READS_WITH_DEACON"
+    tag "modules"
+    tag "modules_local"
+
+    test("retains a matching single-end CBQ and reports meaningful reads") {
+        when {
+            process {
+                """input[0] = [[id: 'matching', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = new java.util.zip.GZIPInputStream(file(output[2][0]).newInputStream()).text
+            def summary = new groovy.json.JsonSlurper().parse(file(output[3]))
+            assertAll(
+                { assert process.success },
+                { assert output[2].collect { file(it).name } == ['matching.fastq.gz'] },
+                { assert output[4] == 'true' },
+                { assert reads == file("${projectDir}/tests/data/deacon/matching.fastq").text },
+                { assert summary.seqs_out == 1 },
+            )
+        }
+    }
+
+    test("preserves official zero-hit outputs") {
+        when {
+            process {
+                """input[0] = [[id: 'nonmatching', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/nonmatching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = new java.util.zip.GZIPInputStream(file(output[2][0]).newInputStream()).text
+            def summary = new groovy.json.JsonSlurper().parse(file(output[3]))
+            assertAll(
+                { assert process.success },
+                { assert output[2].collect { file(it).name } == ['nonmatching.fastq.gz'] },
+                { assert output[4] == 'false' },
+                { assert reads.isEmpty() },
+                { assert summary.seqs_out == 0 },
+            )
+        }
+    }
+
+    test("materializes paired CBQ output as separate FASTQs") {
+        when {
+            process {
+                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[2].collect { file(it).name } == ['paired_R1.fastq.gz', 'paired_R2.fastq.gz'] },
+                { assert output[4] == 'true' },
+            )
+        }
+    }
+
+    test("preserves both official paired FASTQs when no pairs are retained") {
+        when {
+            process {
+                """input[0] = [[id: 'paired-empty', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 100, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = output[2].collect { path ->
+                new java.util.zip.GZIPInputStream(file(path).newInputStream()).text
+            }
+            assertAll(
+                { assert process.success },
+                { assert output[2].collect { file(it).name } == ['paired-empty_R1.fastq.gz', 'paired-empty_R2.fastq.gz'] },
+                { assert reads.every { it.isEmpty() } },
+                { assert output[4] == 'false' },
+            )
+        }
+    }
+
+    test("stubs zero hits while preserving the official output tuple") {
+        when {
+            process {
+                """input[0] = [[id: 'single', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 2, rel_threshold: 0.01, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'single', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[1].id == 'reference-a' },
+                { assert output[2].collect { file(it).name } == ['single.fastq.gz'] },
+                { assert file(output[3]).text == '{"seqs_out": 0}\n' },
+                { assert output[4] == 'false' },
+            )
+        }
+    }
+
+    test("stubs paired output with both gzip FASTQs") {
+        when {
+            process {
+                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 2, rel_threshold: 0.01, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[2].collect { file(it).name } == ['paired_R1.fastq.gz', 'paired_R2.fastq.gz'] },
+                { assert output[4] == 'false' },
+            )
+        }
+    }
+}

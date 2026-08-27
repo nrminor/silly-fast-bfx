@@ -4,6 +4,7 @@
   "title": "silly-fast-bfx samplesheet",
   "description": "NVD-compatible samplesheet for exact, grouped, or SRA read sources.",
   "type": "array",
+  "uniqueEntries": ["sample_id"],
   "items": {
     "type": "object",
     "additionalProperties": false,

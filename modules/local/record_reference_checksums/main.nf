@@ -1,7 +1,3 @@
-def checksumShellQuote(value) {
-    "'${value.toString().replace("'", "'\"'\"'")}'"
-}
-
 process RECORD_REFERENCE_CHECKSUMS {
     tag "${tool}:${reference.id}"
     label 'process_low'
@@ -18,25 +14,25 @@ process RECORD_REFERENCE_CHECKSUMS {
 
     script:
     def entries = sources.collect { source ->
-        "--entry ${checksumShellQuote(source.observed_sha256)} ${checksumShellQuote(source.logical_basename)}"
+        "--entry \"${source.observed_sha256}\" \"${source.logical_basename}\""
     }.join(' ')
     """
     write_reference_checksums.py \
         ${entries} \
         --output source.sha256 \
         --versions-output versions.yml \
-        --process ${checksumShellQuote(task.process)}
+        --process ${task.process}
     """
 
     stub:
     def entries = sources.collect { source ->
-        "--entry ${checksumShellQuote(source.observed_sha256)} ${checksumShellQuote(source.logical_basename)}"
+        "--entry \"${source.observed_sha256}\" \"${source.logical_basename}\""
     }.join(' ')
     """
     write_reference_checksums.py \
         ${entries} \
         --output source.sha256 \
         --versions-output versions.yml \
-        --process ${checksumShellQuote(task.process)}
+        --process ${task.process}
     """
 }

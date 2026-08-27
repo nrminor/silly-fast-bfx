@@ -20,12 +20,13 @@ bqtools = "cargo:bqtools"
 [tools]
 pixi = "0.77.1"
 uv = "0.12.5"
-rust = "1.97.1"
 "github:bahdotsh/wrkflw" = "0.8.0"
 skope = { version = "0.4.0", bin = "skope" }
 deacon = { version = "0.17.0", bin = "deacon" }
 sylph = { version = "tag:v0.9.0", bin = "sylph", locked = true }
 bqtools = { version = "0.5.14", locked = true }
+# Keep pinned Cargo-installed project tools ahead of ambient ~/.cargo/bin tools.
+rust = "1.97.1"
 
 [bootstrap.packages]
 "brew:cmake" = { version = "latest", os = "macos" }

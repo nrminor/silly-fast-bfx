@@ -184,6 +184,7 @@
       "properties": {
         "references": {
           "type": "array",
+          "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/deacon_reference"},
           "default": []
         }
@@ -268,6 +269,7 @@
       "properties": {
         "references": {
           "type": "array",
+          "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/sylph_reference"},
           "default": []
         }
@@ -336,6 +338,7 @@
       "properties": {
         "references": {
           "type": "array",
+          "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/skope_reference"},
           "default": []
         }

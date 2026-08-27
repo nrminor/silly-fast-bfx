@@ -8,20 +8,6 @@ def normalizePlatform(platform) {
         : normalized_platform
 }
 
-def rejectDuplicateSampleIds(rows) {
-    def duplicates = rows
-        .groupBy { row -> row[0].id }
-        .findAll { id, matching_rows -> matching_rows.size() > 1 }
-        .keySet()
-        .sort()
-
-    if (duplicates) {
-        throw new IllegalArgumentException(
-            "Duplicate sample ID: ${duplicates.join(', ')}",
-        )
-    }
-}
-
 workflow GATHER_INPUT_READS {
     take:
     samplesheet
@@ -31,8 +17,6 @@ workflow GATHER_INPUT_READS {
         samplesheet,
         "${projectDir}/assets/samplesheet_schema.json",
     )
-    rejectDuplicateSampleIds(rows)
-
     ch_input_rows = channel
         .fromList(rows)
         .map { meta, srr, fastq1, fastq2, fastq1_glob, fastq2_glob ->

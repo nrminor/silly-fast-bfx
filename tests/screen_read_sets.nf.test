@@ -1,0 +1,112 @@
+nextflow_workflow {
+    name "Screen read sets"
+    script "../subworkflows/local/screen_read_sets/main.nf"
+    workflow "SCREEN_READ_SETS"
+    tag "subworkflows"
+    tag "subworkflows_local"
+
+    test("encodes each read set once and performs the full Deacon Cartesian product") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    tuple(
+                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [file("\$baseDir/tests/data/deacon/matching.fastq")],
+                    ),
+                    tuple(
+                        [id: 'sample-b', platform: 'ont', single_end: true, read_set: 'input'],
+                        [file("\$baseDir/tests/data/deacon/nonmatching.fastq")],
+                    ),
+                )
+                input[1] = channel.of(
+                    tuple(
+                        [id: 'meaningful', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
+                    ),
+                    tuple(
+                        [id: 'empty', filter: [abs_threshold: 100, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
+                    ),
+                )
+                """
+            }
+        }
+
+        then {
+            def official = workflow.out.deacon.collectEntries { meta, reference, reads, summary, has_reads ->
+                [("${meta.id}:${reference.id}".toString()): [meta: meta, reads: reads, summary: summary, has_reads: has_reads]]
+            }
+            def filtered = workflow.out.filtered_reads[0]
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 4 },
+                { assert official.keySet() == ['sample-a:meaningful', 'sample-a:empty', 'sample-b:meaningful', 'sample-b:empty'] as Set },
+                { assert official['sample-a:meaningful'].has_reads == 'true' },
+                { assert official.findAll { key, output -> key != 'sample-a:meaningful' }.values().every { output -> output.has_reads == 'false' } },
+                { assert official.values().every { output -> output.meta.read_set == 'input' && !output.meta.containsKey('deacon_id') } },
+                { assert workflow.out.filtered_reads.size() == 1 },
+                { assert filtered[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'meaningful'] },
+                { assert filtered[1].collect { file(it).name } == ['sample-a.fastq.gz'] },
+            )
+        }
+    }
+
+    test("preserves paired mates with colliding source basenames") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [
+                        file("\$baseDir/tests/data/deacon/mates/r1/reads.fastq"),
+                        file("\$baseDir/tests/data/deacon/mates/r2/reads.fastq"),
+                    ],
+                ))
+                input[1] = channel.of(tuple(
+                    [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                    file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
+                ))
+                """
+            }
+        }
+
+        then {
+            def output = workflow.out.filtered_reads[0]
+            def reads = output[1].collect { path ->
+                new java.util.zip.GZIPInputStream(file(path).newInputStream()).text
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+                { assert reads[0] == file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").text },
+                { assert reads[1] == file("${projectDir}/tests/data/deacon/mates/r2/reads.fastq").text },
+            )
+        }
+    }
+
+    test("does not encode when there are no Deacon references") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [file("\$baseDir/tests/data/deacon/matching.fastq")],
+                ))
+                input[1] = channel.empty()
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().isEmpty() },
+                { assert workflow.out.deacon.isEmpty() },
+                { assert workflow.out.filtered_reads.isEmpty() },
+            )
+        }
+    }
+}

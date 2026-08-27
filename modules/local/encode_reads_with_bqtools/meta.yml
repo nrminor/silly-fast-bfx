@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "encode_reads_with_bqtools"
+description: Losslessly encode one single- or paired-end read set as CBQ.
+keywords:
+  - bqtools
+  - cbq
+  - reads
+tools:
+  - bqtools:
+      description: Toolkit for encoding biological sequence data.
+      homepage: https://github.com/ArcInstitute/bqtools
+input:
+  - meta:
+      type: map
+      description: Read-set metadata, retained unchanged in the output tuple.
+  - reads:
+      type: file
+      description: One single-end FASTQ or two paired-end FASTQ files.
+output:
+  - encodings:
+      type: file
+      description: Tuple of unchanged metadata and one CBQ read encoding.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

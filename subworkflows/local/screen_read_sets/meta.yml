@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "screen_read_sets"
+description: Encode input read sets once and filter them against prepared Deacon reference specifications.
+keywords:
+  - reads
+  - deacon
+  - filtering
+components:
+  - encode_reads_with_bqtools
+  - filter_reads_with_deacon
+input:
+  - input_reads:
+      type: file
+      description: Metadata and one or two FASTQ paths for each input read set.
+  - deacon_references:
+      type: file
+      description: Normalized Deacon reference specifications and prepared indexes.
+output:
+  - deacon:
+      type: file
+      description: Official Deacon FASTQ and summary outputs with meaningful-data flags.
+  - filtered_reads:
+      type: file
+      description: Meaningful Deacon-filtered read sets as standard FASTQ tuples.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

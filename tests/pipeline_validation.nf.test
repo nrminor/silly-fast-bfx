@@ -51,22 +51,98 @@ nextflow_pipeline {
         }
     }
 
-    test("enabled tools fail at the unit 01 capability guard") {
+    test("duplicate reference IDs are rejected by the parameter schema") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
         when {
             params {
-                input = "/tmp/not-read.csv"
+                input = "$outputDir/exact.csv"
+                skip_deacon = true
                 deacon = [
-                    references: [[
-                        id: "reference-a",
-                        index: [kind: "https", url: "https://example.org/reference.idx"],
-                    ]],
+                    references: [
+                        [id: "duplicate", index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"]],
+                        [id: "duplicate", index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"], filter: [abs_threshold: 3]],
+                    ],
                 ]
             }
         }
 
         then {
             assert workflow.failed
-            assert workflow.stdout.join('\n').contains("Deacon screening is available in a later review unit")
+            assert workflow.stderr.join('\n').contains("duplicate")
+        }
+    }
+
+    test("an enabled Deacon reference screens exact-local reads") {
+        setup {
+            def samplesheet = file("$outputDir/deacon.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/deacon.csv"
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"],
+                        filter: [abs_threshold: 1, rel_threshold: 0.0],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_DEACON_INDEX') } == 0 },
+            )
+        }
+    }
+
+    test("a source-built Deacon reference reaches screening") {
+        setup {
+            def samplesheet = file("$outputDir/deacon-source.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/deacon-source.csv"
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        fasta: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.fa"],
+                        filter: [abs_threshold: 1, rel_threshold: 0.0],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_DEACON_INDEX') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+            )
         }
     }
 

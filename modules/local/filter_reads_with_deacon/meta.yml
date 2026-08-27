@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "filter_reads_with_deacon"
+description: Filter one CBQ read encoding against a Deacon reference specification.
+keywords:
+  - deacon
+  - filter
+  - reads
+tools:
+  - deacon:
+      description: Fast DNA sequence search and host depletion using minimizers.
+      homepage: https://github.com/bede/deacon
+  - bqtools:
+      description: Toolkit for encoding and decoding biological sequence data.
+      homepage: https://github.com/ArcInstitute/bqtools
+input:
+  - meta:
+      type: map
+      description: Read-set metadata, retained unchanged in the output tuple.
+  - reference:
+      type: map
+      description: Normalized Deacon reference specification including filter settings.
+  - cbq:
+      type: file
+      description: CBQ read encoding.
+  - index:
+      type: file
+      description: Deacon minimizer index.
+output:
+  - reads:
+      type: file
+      description: Tuple of unchanged metadata, reference, one or two gzip FASTQs, JSON summary, and HAS_READS.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

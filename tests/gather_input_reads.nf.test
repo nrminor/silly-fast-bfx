@@ -110,7 +110,7 @@ nextflow_workflow {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.join('\n').contains("Duplicate sample ID")
+            assert workflow.stderr.join('\n').contains("Detected duplicate entries: [sample_id:duplicate]")
         }
     }
 

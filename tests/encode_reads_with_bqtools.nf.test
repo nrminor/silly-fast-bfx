@@ -1,0 +1,59 @@
+nextflow_process {
+    name "Encode reads with bqtools process"
+    script "../modules/local/encode_reads_with_bqtools/main.nf"
+    process "ENCODE_READS_WITH_BQTOOLS"
+    tag "modules"
+    tag "modules_local"
+
+    test("encodes one single-end read set as CBQ") {
+        when {
+            process {
+                """input[0] = [[id: 'single', platform: 'ont', single_end: true, read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching.fastq")]]"""
+            }
+        }
+
+        then {
+            def output = process.out.encodings[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].id == 'single' },
+                { assert file(output[1]).name == 'single.cbq' },
+                { assert file(output[1]).size() > 0 },
+            )
+        }
+    }
+
+    test("encodes paired FASTQ as one paired CBQ") {
+        when {
+            process {
+                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching_R1.fastq"), file("\$baseDir/tests/data/deacon/matching_R2.fastq")]]"""
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.out.encodings.size() == 1
+            assert file(process.out.encodings[0][1]).size() > 0
+        }
+    }
+
+    test("stubs paired reads without changing metadata") {
+        when {
+            process {
+                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [file("\$baseDir/tests/data/fastq/paired_R1.fastq"), file("\$baseDir/tests/data/fastq/paired_R2.fastq")]]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.encodings[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'] },
+                { assert file(output[1]).name == 'paired.cbq' },
+                { assert file(output[1]).text == 'stub cbq' },
+            )
+        }
+    }
+
+}

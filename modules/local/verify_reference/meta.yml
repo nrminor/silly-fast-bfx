@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
 name: "verify_reference"
-description: Record a reference SHA-256 and verify every configured expected digest.
+description: Record a reference SHA-256 and verify its configured expected digest.
 keywords:
   - reference
   - checksum
@@ -10,22 +10,28 @@ tools:
       description: Python programming language
       homepage: https://www.python.org/
 input:
-  - location:
+  - tool:
       type: string
-      description: Normalized absolute local path or exact HTTPS URL used as the acquisition key.
-  - logical_basename:
+      description: Tool that declared the reference source.
+  - reference:
+      type: map
+      description: Reference specification that declared the source.
+  - role:
       type: string
-      description: Controlled filename retained for staging and provenance.
+      description: Role of this source within its reference specification.
+  - order:
+      type: integer
+      description: Declaration order within the reference specification.
+  - source:
+      type: map
+      description: Source declaration with local path or HTTPS URL and optional expected SHA-256.
   - artifact:
       type: file
       description: Acquired reference artifact.
-  - expected_sha256s:
-      type: list
-      description: Distinct expected SHA-256 assertions from every declaration of this location.
 output:
   - artifacts:
       type: file
-      description: Tuple of location, logical basename, unmodified artifact, and observed.sha256 receipt.
+      description: Input context and artifact followed by the observed.sha256 receipt.
   - versions:
       type: file
       description: Software versions topic.

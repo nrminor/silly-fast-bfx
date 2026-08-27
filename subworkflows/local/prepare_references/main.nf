@@ -1,132 +1,7 @@
 include { DOWNLOAD_REFERENCE         } from '../../../modules/local/download_reference'
 include { VERIFY_REFERENCE           } from '../../../modules/local/verify_reference'
 include { RECORD_REFERENCE_CHECKSUMS } from '../../../modules/local/record_reference_checksums'
-
-def rejectDuplicateReferenceIds(tool, references) {
-    def duplicates = references
-        .groupBy { reference -> reference.id }
-        .findAll { id, matches -> matches.size() > 1 }
-        .keySet()
-        .sort()
-
-    if (duplicates) {
-        throw new IllegalArgumentException("Duplicate ${tool} reference ID: ${duplicates.join(', ')}")
-    }
-}
-
-def logicalBasename(source) {
-    def remote_path = source.kind == 'https' ? new java.net.URI(source.url).rawPath : null
-    def basename = source.kind == 'local'
-        ? java.nio.file.Paths.get(source.path).fileName?.toString()
-        : remote_path && !remote_path.endsWith('/') ? remote_path.tokenize('/').last() : null
-
-    if (
-        !basename ||
-        basename.startsWith('-') ||
-        basename.startsWith('.command') ||
-        basename in ['.', '..', '.exitcode', 'observed.sha256', 'source.sha256', 'versions.yml']
-    ) {
-        throw new IllegalArgumentException("Reference source has no usable logical basename: ${source.path ?: source.url}")
-    }
-    if (basename.find(/[\x00-\x1f\x7f*?\[\]{}\\]/)) {
-        throw new IllegalArgumentException("Reference source has an unsafe logical basename: ${basename}")
-    }
-
-    basename
-}
-
-def acquisitionKey(source) {
-    source.kind == 'local'
-        ? java.nio.file.Paths.get(source.path).toAbsolutePath().normalize().toString()
-        : source.url
-}
-
-def declaration(tool, reference, role, order, source) {
-    def basename = logicalBasename(source)
-    [
-        acquisition_key: acquisitionKey(source),
-        tool: tool,
-        reference: reference,
-        role: role,
-        order: order,
-        source: source + [logical_basename: basename],
-    ]
-}
-
-def declarationsForReference(tool, reference) {
-    def declarations
-
-    if (tool == 'deacon') {
-        def role = reference.fasta ? 'fasta' : 'index'
-        declarations = [declaration(tool, reference, role, 0, reference[role])]
-    } else if (tool == 'sylph') {
-        def primary = reference.fastas
-            ? reference.fastas.withIndex().collect { source, index ->
-                declaration(tool, reference, 'fasta', index, source)
-            }
-            : [declaration(tool, reference, 'database', 0, reference.database)]
-        def taxonomy_offset = primary.size()
-        def taxonomy = (reference.taxonomy?.metadata ?: []).withIndex().collect { source, index ->
-            declaration(tool, reference, 'taxonomy_metadata', taxonomy_offset + index, source)
-        }
-        declarations = primary + taxonomy
-    } else {
-        def role = reference.targets ? 'targets' : 'query_index'
-        declarations = [declaration(tool, reference, role, 0, reference[role])]
-    }
-
-    def duplicates = declarations
-        .groupBy { item -> item.source.logical_basename }
-        .findAll { basename, matches -> matches.size() > 1 }
-        .keySet()
-        .sort()
-    if (duplicates) {
-        throw new IllegalArgumentException(
-            "Duplicate logical basename in ${tool} reference '${reference.id}': ${duplicates.join(', ')}",
-        )
-    }
-
-    declarations
-}
-
-def allDeclarations(deacon, sylph, skope) {
-    rejectDuplicateReferenceIds('Deacon', deacon)
-    rejectDuplicateReferenceIds('Sylph', sylph)
-    rejectDuplicateReferenceIds('Skope', skope)
-
-    deacon.collectMany { reference -> declarationsForReference('deacon', reference) } +
-        sylph.collectMany { reference -> declarationsForReference('sylph', reference) } +
-        skope.collectMany { reference -> declarationsForReference('skope', reference) }
-}
-
-def resolvedSources(entries) {
-    def ordered = entries.sort { left, right -> left.order <=> right.order }
-    def tool = ordered.first().tool
-    def reference = ordered.first().reference
-    def enriched = ordered.collect { entry ->
-        entry + [source: entry.source + [observed_sha256: entry.observed_sha256]]
-    }
-    def primary = enriched.findAll { entry -> entry.role != 'taxonomy_metadata' }
-    def taxonomy = enriched.findAll { entry -> entry.role == 'taxonomy_metadata' }
-
-    [
-        tool: tool,
-        reference: reference,
-        sources: enriched.collect { entry ->
-            [
-                role: entry.role,
-                order: entry.order,
-                location: entry.acquisition_key,
-                logical_basename: entry.source.logical_basename,
-                observed_sha256: entry.source.observed_sha256,
-            ]
-        },
-        primary_sources: primary.collect { entry -> entry.source },
-        primary_artifacts: primary.collect { entry -> entry.artifact },
-        taxonomy_sources: taxonomy.collect { entry -> entry.source },
-        taxonomy_artifacts: taxonomy.collect { entry -> entry.artifact },
-    ]
-}
+include { BUILD_DEACON_INDEX          } from '../../../modules/local/build_deacon_index'
 
 workflow PREPARE_REFERENCES {
     take:
@@ -135,18 +10,60 @@ workflow PREPARE_REFERENCES {
     skope_references
 
     main:
-    declarations = allDeclarations(deacon_references, sylph_references, skope_references)
-    ch_declarations = channel.fromList(declarations)
+    normalized_deacon_references = deacon_references.collect { reference ->
+        def normalized = reference + [
+            filter: [
+                abs_threshold: 2,
+                rel_threshold: 0.01,
+                prefix_length: 0,
+                complexity_threshold: null,
+                deplete: false,
+            ] + (reference.filter ?: [:]),
+        ]
 
-    ch_expectations = ch_declarations
-        .map { item -> tuple(item.acquisition_key, item.source.sha256 ?: '') }
-        .groupTuple()
-        .map { location, expected ->
-            tuple(location, expected.findAll().collect { it.toLowerCase() }.unique().sort())
+        reference.fasta
+            ? normalized + [
+                build: [kmer_length: 31, window_size: 15] + (reference.build ?: [:]),
+            ]
+            : normalized
+    }
+
+    ch_deacon_source_uses = channel.fromList(normalized_deacon_references).map { reference ->
+        def role = reference.fasta ? 'fasta' : 'index'
+        def source = reference[role]
+        tuple(source.path ?: source.url, 'deacon', reference, role, 0, source)
+    }
+
+    ch_sylph_source_uses = channel.fromList(sylph_references).flatMap { reference ->
+        def primary = reference.fastas
+            ? reference.fastas.withIndex().collect { source, order ->
+                tuple(source.path ?: source.url, 'sylph', reference, 'fasta', order, source)
+            }
+            : [tuple(reference.database.path ?: reference.database.url, 'sylph', reference, 'database', 0, reference.database)]
+
+        primary + (reference.taxonomy?.metadata ?: []).withIndex().collect { source, order ->
+            tuple(source.path ?: source.url, 'sylph', reference, 'taxonomy_metadata', primary.size() + order, source)
+        }
+    }
+
+    ch_skope_source_uses = channel.fromList(skope_references).map { reference ->
+        def role = reference.targets ? 'targets' : 'query_index'
+        def source = reference[role]
+        tuple(source.path ?: source.url, 'skope', reference, role, 0, source)
+    }
+
+    ch_source_uses = ch_deacon_source_uses
+        .mix(ch_sylph_source_uses)
+        .mix(ch_skope_source_uses)
+        .map { location, tool, reference, role, order, source ->
+            def acquisition_key = source.kind == 'local'
+                ? java.nio.file.Paths.get(location).toAbsolutePath().normalize().toString()
+                : location
+            tuple(acquisition_key, tool, reference, role, order, source)
         }
 
-    ch_unique_sources = ch_declarations
-        .map { item -> tuple(item.acquisition_key, item.source) }
+    ch_unique_sources = ch_source_uses
+        .map { location, tool, reference, role, order, source -> tuple(location, source) }
         .unique { location, source -> location }
         .branch {
             local: it[1].kind == 'local'
@@ -154,66 +71,126 @@ workflow PREPARE_REFERENCES {
         }
 
     ch_local_artifacts = ch_unique_sources.local.map { location, source ->
-        tuple(
-            location,
-            source.logical_basename,
-            file(location, checkIfExists: true, glob: false),
-        )
+        tuple(location, file(location, checkIfExists: true, glob: false))
     }
 
     ch_https_requests = ch_unique_sources.https.map { location, source ->
-        tuple(location, source.logical_basename)
+        tuple(location, new java.net.URI(source.url).path.tokenize('/').last())
     }
 
     DOWNLOAD_REFERENCE(ch_https_requests)
 
     ch_acquired_artifacts = ch_local_artifacts.mix(DOWNLOAD_REFERENCE.out.artifacts)
 
-    VERIFY_REFERENCE(ch_acquired_artifacts.combine(ch_expectations, by: 0))
+    ch_verification_jobs = ch_source_uses
+        .combine(ch_acquired_artifacts, by: 0)
+        .map { location, tool, reference, role, order, source, artifact ->
+            tuple(tool, reference, role, order, source, artifact)
+        }
 
-    ch_verified_artifacts = VERIFY_REFERENCE.out.artifacts.map {
-        location, basename, artifact, observed_sha256 ->
-        tuple(location, basename, artifact, observed_sha256.text.trim())
+    VERIFY_REFERENCE(ch_verification_jobs)
+
+    ch_verified_sources = VERIFY_REFERENCE.out.artifacts.map {
+        tool, reference, role, order, source, artifact, observed_sha256_file ->
+
+        tuple(
+            tool,
+            reference,
+            role,
+            order,
+            source + [
+                logical_basename: artifact.name,
+                observed_sha256: observed_sha256_file.text.trim(),
+            ],
+            artifact,
+        )
     }
 
-    ch_resolved_entries = ch_declarations
-        .map { item -> tuple(item.acquisition_key, item) }
-        .combine(ch_verified_artifacts, by: 0)
-        .map { location, item, basename, artifact, observed_sha256 ->
+    ch_reference_sources = ch_verified_sources.branch {
+        deacon: it[0] == 'deacon'
+        sylph: it[0] == 'sylph'
+        skope: it[0] == 'skope'
+    }
+
+    ch_deacon_sources = ch_reference_sources.deacon.map {
+        tool, reference, role, order, source, artifact -> tuple(reference, source, artifact)
+    }
+
+    ch_deacon_build_uses = ch_deacon_sources
+        .filter { reference, source, artifact -> reference.fasta }
+        .map { reference, source, fasta ->
             tuple(
-                [item.tool, item.reference.id],
-                item + [artifact: artifact, observed_sha256: observed_sha256],
+                [
+                    observed_sha256: source.observed_sha256,
+                    settings: reference.build,
+                ],
+                reference,
+                fasta,
             )
         }
 
-    ch_resolved_sources = ch_resolved_entries
+    ch_deacon_source_builds = ch_deacon_build_uses
+        .map { build, reference, fasta -> tuple(build, fasta) }
+        .unique { build, fasta -> build }
+
+    BUILD_DEACON_INDEX(ch_deacon_source_builds)
+
+    ch_deacon_built_references = ch_deacon_build_uses
+        .map { build, reference, fasta -> tuple(build, reference) }
+        .combine(BUILD_DEACON_INDEX.out.indexes, by: 0)
+        .map { build, reference, index -> tuple(reference, index) }
+
+    ch_deacon_prebuilt_references = ch_deacon_sources
+        .filter { reference, source, artifact -> reference.index }
+        .map { reference, source, index -> tuple(reference, index) }
+
+    ch_deacon_references = ch_deacon_prebuilt_references.mix(ch_deacon_built_references)
+
+    ch_sylph_grouped = ch_reference_sources.sylph
+        .map { tool, reference, role, order, source, artifact ->
+            tuple(
+                reference,
+                [role: role, order: order, source: source, artifact: artifact],
+            )
+        }
         .groupTuple()
-        .map { key, entries -> resolvedSources(entries) }
+        .map { reference, entries ->
+            tuple(reference, entries.sort { left, right -> left.order <=> right.order })
+        }
 
-    ch_reference_sources = ch_resolved_sources.branch {
-        deacon: it.tool == 'deacon'
-        sylph: it.tool == 'sylph'
-        skope: it.tool == 'skope'
-    }
-
-    ch_deacon_sources = ch_reference_sources.deacon.map { item ->
-        tuple(item.reference, item.primary_sources.first(), item.primary_artifacts.first())
-    }
-    ch_sylph_sources = ch_reference_sources.sylph.map { item ->
-        tuple(item.reference, item.primary_sources, item.primary_artifacts)
-    }
-    ch_sylph_taxonomy = ch_reference_sources.sylph
-        .filter { item -> !item.taxonomy_artifacts.isEmpty() }
-        .map { item -> tuple(item.reference, item.taxonomy_sources, item.taxonomy_artifacts) }
-    ch_skope_sources = ch_reference_sources.skope.map { item ->
-        tuple(item.reference, item.primary_sources.first(), item.primary_artifacts.first())
+    ch_sylph_sources = ch_sylph_grouped.map { reference, entries ->
+        def primary = entries.findAll { entry -> entry.role != 'taxonomy_metadata' }
+        tuple(reference, primary*.source, primary*.artifact)
     }
 
-    RECORD_REFERENCE_CHECKSUMS(
-        ch_resolved_sources.map { item -> tuple(item.tool, item.reference, item.sources) },
-    )
+    ch_sylph_taxonomy = ch_sylph_grouped
+        .map { reference, entries ->
+            def taxonomy = entries.findAll { entry -> entry.role == 'taxonomy_metadata' }
+            tuple(reference, taxonomy*.source, taxonomy*.artifact)
+        }
+        .filter { reference, sources, artifacts -> !artifacts.isEmpty() }
+
+    ch_skope_sources = ch_reference_sources.skope.map {
+        tool, reference, role, order, source, artifact -> tuple(reference, source, artifact)
+    }
+
+    ch_deacon_manifest_jobs = ch_deacon_sources.map { reference, source, artifact ->
+        tuple('deacon', reference, [source])
+    }
+    ch_sylph_manifest_jobs = ch_sylph_grouped.map { reference, entries ->
+        tuple('sylph', reference, entries*.source)
+    }
+    ch_skope_manifest_jobs = ch_skope_sources.map { reference, source, artifact ->
+        tuple('skope', reference, [source])
+    }
+    ch_manifest_jobs = ch_deacon_manifest_jobs
+        .mix(ch_sylph_manifest_jobs)
+        .mix(ch_skope_manifest_jobs)
+
+    RECORD_REFERENCE_CHECKSUMS(ch_manifest_jobs)
 
     emit:
+    deacon = ch_deacon_references
     deacon_sources = ch_deacon_sources
     sylph_sources = ch_sylph_sources
     sylph_taxonomy = ch_sylph_taxonomy

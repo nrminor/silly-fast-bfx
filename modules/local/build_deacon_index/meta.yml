@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "build_deacon_index"
+description: Build a Deacon minimizer index from one FASTA reference artifact.
+keywords:
+  - deacon
+  - index
+  - reference
+tools:
+  - deacon:
+      description: Fast DNA sequence search and host depletion using minimizers.
+      homepage: https://github.com/bede/deacon
+input:
+  - build:
+      type: map
+      description: Build identity containing the observed FASTA digest and normalized Deacon settings.
+  - fasta:
+      type: file
+      description: FASTA reference artifact.
+output:
+  - indexes:
+      type: file
+      description: Tuple of the unchanged build identity and deacon.idx.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

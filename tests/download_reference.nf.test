@@ -18,9 +18,8 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert output[0] == 'https://fixtures.invalid/reference/shared.fa' },
-                { assert output[1] == 'shared.fa' },
-                { assert file(output[2]).name == 'shared.fa' },
-                { assert file(output[2]).text == 'abc' },
+                { assert file(output[1]).name == 'shared.fa' },
+                { assert file(output[1]).text == 'abc' },
             )
         }
     }

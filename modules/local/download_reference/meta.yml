@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
 name: "download_reference"
-description: Download one HTTPS reference artifact under its controlled logical basename.
+description: Download one HTTPS reference artifact under its source basename.
 keywords:
   - reference
   - download
@@ -19,7 +19,7 @@ input:
 output:
   - artifacts:
       type: file
-      description: Tuple of exact URL, logical basename, and downloaded artifact.
+      description: Tuple of exact URL and downloaded artifact.
   - versions:
       type: file
       description: Software versions topic.

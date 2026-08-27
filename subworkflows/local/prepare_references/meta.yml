@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "prepare_references"
-description: Acquire, verify, deduplicate, and reattach configured reference artifacts.
+description: Acquire, verify, deduplicate, build, and reattach configured reference artifacts.
 keywords:
   - reference
   - checksum
@@ -9,6 +9,7 @@ components:
   - download_reference
   - verify_reference
   - record_reference_checksums
+  - build_deacon_index
 input:
   - deacon_references:
       type: list
@@ -20,6 +21,9 @@ input:
       type: list
       description: Validated Skope reference specifications.
 output:
+  - deacon:
+      type: file
+      description: Tuples of normalized Deacon reference specifications and prepared indexes.
   - deacon_sources:
       type: file
       description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
