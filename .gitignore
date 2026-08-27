@@ -19,19 +19,11 @@
 !/pyproject.toml
 !/uv.lock
 
-# Mise file tasks
+# Mise tasks
 !/.mise/
 !/.mise/pixi-activate.sh
 !/.mise/tasks/
-!/.mise/tasks/check
-!/.mise/tasks/ci-validate
-!/.mise/tasks/container-build
-!/.mise/tasks/container-test
-!/.mise/tasks/environment-install
-!/.mise/tasks/locks-check
-!/.mise/tasks/nextflow-config-check
-!/.mise/tasks/test
-!/.mise/tasks/tools-check
+!/.mise/tasks/**
 
 # GitHub automation
 !/.github/
@@ -39,14 +31,24 @@
 !/.github/workflows/ci.yml
 !/.github/workflows/release.yml
 
-# Reused nf-core components
+# Pipeline implementation
+!/assets/
+!/assets/**
+!/bin/
+!/bin/**
+!/conf/
+!/conf/**
+!/modules/
+!/modules/local/
+!/modules/local/**
 !/subworkflows/
 !/subworkflows/nf-core/
-!/subworkflows/nf-core/utils_nfschema_plugin/
-!/subworkflows/nf-core/utils_nfschema_plugin/main.nf
-!/subworkflows/nf-core/utils_nfschema_plugin/meta.yml
+!/subworkflows/nf-core/**
+!/subworkflows/local/
+!/subworkflows/local/**
 
-# Scaffold tests
+# Tests
 !/tests/
-!/tests/nextflow.config
-!/tests/scaffold.nf.test
+!/tests/**
+!/tests-remote/
+!/tests-remote/**

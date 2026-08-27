@@ -1,0 +1,213 @@
+nextflow_workflow {
+    name "Gather exact local input reads"
+    script "../subworkflows/local/gather_input_reads/main.nf"
+    workflow "GATHER_INPUT_READS"
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "gather_input_reads"
+
+    test("emits exact single- and paired-end read sets") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2,fastq1_glob,fastq2_glob",
+                "paired,SRR123456,illumina,${projectDir}/tests/data/fastq/paired_R1.fastq,${projectDir}/tests/data/fastq/paired_R2.fastq,${projectDir}/tests/data/fastq/paired_R1*.fastq,${projectDir}/tests/data/fastq/paired_R2*.fastq",
+                "single,,Oxford_Nanopore,${projectDir}/tests/data/fastq/single.fastq,,,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/exact.csv"
+                """
+            }
+        }
+
+        then {
+            def reads_by_id = workflow.out.reads.collectEntries { meta, reads ->
+                [(meta.id): [meta: meta, reads: reads.collect { file(it).name }]]
+            }
+
+            assertAll(
+                { assert workflow.success },
+                { assert reads_by_id.keySet() == ["paired", "single"] as Set },
+                { assert reads_by_id.paired.meta == [id: "paired", platform: "illumina", single_end: false, read_set: "input"] },
+                { assert reads_by_id.paired.reads == ["paired_R1.fastq", "paired_R2.fastq"] },
+                { assert reads_by_id.single.meta == [id: "single", platform: "ont", single_end: true, read_set: "input"] },
+                { assert reads_by_id.single.reads == ["single.fastq"] },
+            )
+        }
+    }
+
+    test("rejects grouped rows until unit 08") {
+        setup {
+            def samplesheet = file("$outputDir/grouped.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2,fastq1_glob,fastq2_glob",
+                "grouped,,illumina,,,${projectDir}/tests/data/fastq/paired_R1*.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/grouped.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join('\n').contains("Grouped FASTQ input is available in a later review unit")
+        }
+    }
+
+    test("rejects SRA rows until unit 09") {
+        setup {
+            def samplesheet = file("$outputDir/sra.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sra,SRR123456,illumina,,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/sra.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join('\n').contains("SRA input is available in a later review unit")
+        }
+    }
+
+    test("rejects duplicate sample IDs") {
+        setup {
+            def samplesheet = file("$outputDir/duplicate.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "duplicate,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "duplicate,,ont,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/duplicate.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join('\n').contains("Duplicate sample ID")
+        }
+    }
+
+    test("rejects populated unknown columns") {
+        setup {
+            def samplesheet = file("$outputDir/unknown-column.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2,fastq_2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,,${projectDir}/tests/data/fastq/paired_R2.fastq",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/unknown-column.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("fastq_2")
+        }
+    }
+
+    test("rejects mate 2 without mate 1") {
+        setup {
+            def samplesheet = file("$outputDir/mate-2-only.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,,${projectDir}/tests/data/fastq/paired_R2.fastq",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/mate-2-only.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("mate 2 cannot appear without mate 1")
+        }
+    }
+
+    test("does not treat an exact-path glob as a lower-priority source") {
+        setup {
+            def samplesheet = file("$outputDir/exact-glob.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,SRR123456,illumina,${projectDir}/tests/data/fastq/literal[reads].fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/exact-glob.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("fastq1")
+            assert !workflow.stdout.join('\n').contains("SRA input is available in a later review unit")
+        }
+    }
+
+    test("rejects publication-unsafe sample IDs") {
+        setup {
+            def samplesheet = file("$outputDir/unsafe-id.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample/a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/unsafe-id.csv"
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("sample_id")
+        }
+    }
+}

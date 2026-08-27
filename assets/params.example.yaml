@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../nextflow_schema.json
+
+input: assets/samplesheet.example.csv
+outdir: results
+
+skip_deacon: true
+skip_sylph: true
+skip_skope: true
+skip_post_deacon: false
+
+deacon:
+  references:
+    - id: respiratory
+      fasta:
+        kind: local
+        path: /refs/respiratory.fasta
+      build:
+        kmer_length: 31
+        window_size: 15
+      filter:
+        abs_threshold: 2
+        rel_threshold: 0.01
+
+sylph:
+  references:
+    - id: gtdb-r232
+      database:
+        kind: https
+        url: https://example.org/gtdb-r232.syldb
+      sample_sketch:
+        kmer_length: 31
+        compression: 200
+      profile:
+        minimum_ani: 95
+      taxonomy:
+        metadata:
+          - kind: https
+            url: https://example.org/gtdb-r232-taxonomy.tsv.gz
+
+skope:
+  references:
+    - id: respiratory
+      targets:
+        kind: local
+        path: /refs/respiratory.fasta
+      build:
+        kmer_length: 31
+        smer_length: 9
+      query:
+        abundance_thresholds: [10]
+        confidence: false

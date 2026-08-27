@@ -2,57 +2,344 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/nrminor/silly-fast-bfx/main/nextflow_schema.json",
   "title": "nrminor/silly-fast-bfx pipeline parameters",
-  "description": "Extremely fast metagenomics",
+  "description": "Rapid metagenomic screening across named tool-specific reference specifications.",
   "type": "object",
+  "additionalProperties": false,
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "format": "path",
+      "description": "NVD-compatible samplesheet."
+    },
+    "outdir": {
+      "type": "string",
+      "format": "path",
+      "default": "results",
+      "description": "Directory for the results bundle."
+    },
+    "skip_deacon": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip every Deacon reference specification."
+    },
+    "skip_sylph": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip every Sylph reference specification."
+    },
+    "skip_skope": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip every Skope reference specification."
+    },
+    "skip_post_deacon": {
+      "type": "boolean",
+      "default": false,
+      "description": "Do not search Deacon-filtered read sets with Sylph or Skope."
+    },
+    "deacon": {
+      "$ref": "#/$defs/deacon_configuration"
+    },
+    "sylph": {
+      "$ref": "#/$defs/sylph_configuration"
+    },
+    "skope": {
+      "$ref": "#/$defs/skope_configuration"
+    },
+    "monoimage": {
+      "type": "string",
+      "description": "Container image used by every pipeline process.",
+      "hidden": true
+    },
+    "publish_dir_mode": {
+      "type": "string",
+      "enum": ["copy", "copyNoFollow", "link", "move", "rellink", "symlink"],
+      "default": "copy",
+      "description": "Nextflow publication mode.",
+      "hidden": true
+    },
+    "help": {
+      "type": ["boolean", "string"],
+      "description": "Display the help message.",
+      "hidden": true
+    },
+    "help_full": {
+      "type": "boolean",
+      "description": "Display the full help message.",
+      "hidden": true
+    },
+    "show_hidden": {
+      "type": "boolean",
+      "description": "Display hidden parameters in the help message.",
+      "hidden": true
+    },
+    "validate_params": {
+      "type": "boolean",
+      "default": true,
+      "description": "Validate parameters against the pipeline schema.",
+      "hidden": true
+    },
+    "version": {
+      "type": "boolean",
+      "description": "Display the pipeline version.",
+      "hidden": true
+    }
+  },
   "$defs": {
-    "output_options": {
-      "title": "Output options",
+    "reference_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "artifact_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": {"const": "local"},
+            "path": {
+              "type": "string",
+              "format": "path",
+              "pattern": "^/"
+            },
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "url"],
+          "properties": {
+            "kind": {"const": "https"},
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      ]
+    },
+    "deacon_build": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "results": {
-          "type": "string",
-          "format": "path",
-          "description": "Directory for published pipeline results."
+        "kmer_length": {"type": "integer", "minimum": 1, "default": 31},
+        "window_size": {"type": "integer", "minimum": 1, "default": 15}
+      }
+    },
+    "deacon_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "abs_threshold": {"type": "integer", "minimum": 1, "default": 2},
+        "rel_threshold": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.01},
+        "prefix_length": {"type": "integer", "minimum": 0, "default": 0},
+        "complexity_threshold": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "default": null
+        },
+        "deplete": {"type": "boolean", "default": false}
+      }
+    },
+    "deacon_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/reference_id"},
+        "fasta": {"$ref": "#/$defs/artifact_source"},
+        "index": {"$ref": "#/$defs/artifact_source"},
+        "build": {"$ref": "#/$defs/deacon_build"},
+        "filter": {"$ref": "#/$defs/deacon_filter"}
+      },
+      "oneOf": [
+        {
+          "required": ["fasta"],
+          "not": {"required": ["index"]}
+        },
+        {
+          "required": ["index"],
+          "not": {
+            "anyOf": [
+              {"required": ["fasta"]},
+              {"required": ["build"]}
+            ]
+          }
+        }
+      ]
+    },
+    "deacon_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/deacon_reference"},
+          "default": []
         }
       }
     },
-    "generic_options": {
-      "title": "Generic options",
+    "sylph_build": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "monoimage": {
-          "type": "string",
-          "description": "Container image used by every pipeline process.",
-          "hidden": true
+        "kmer_length": {"type": "integer", "enum": [21, 31], "default": 31},
+        "compression": {"type": "integer", "minimum": 1, "default": 200},
+        "individual_records": {"type": "boolean", "default": false},
+        "min_spacing": {"type": "integer", "minimum": 0, "default": 30}
+      }
+    },
+    "sylph_sample_sketch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kmer_length": {"type": "integer", "enum": [21, 31], "default": 31},
+        "compression": {"type": "integer", "minimum": 1, "default": 200}
+      }
+    },
+    "sylph_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_ani": {"type": "number", "minimum": 0, "maximum": 100, "default": 95},
+        "min_count_correct": {"type": "number", "minimum": 0, "default": 3},
+        "min_number_kmers": {"type": "number", "minimum": 0, "default": 50},
+        "redundant_ani": {"type": "number", "minimum": 0, "maximum": 100, "default": 99}
+      }
+    },
+    "sylph_taxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata"],
+      "properties": {
+        "metadata": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/artifact_source"}
+        }
+      }
+    },
+    "sylph_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/reference_id"},
+        "fastas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/artifact_source"}
         },
-        "help": {
-          "type": ["boolean", "string"],
-          "description": "Display the help message."
+        "database": {"$ref": "#/$defs/artifact_source"},
+        "build": {"$ref": "#/$defs/sylph_build"},
+        "sample_sketch": {"$ref": "#/$defs/sylph_sample_sketch"},
+        "profile": {"$ref": "#/$defs/sylph_profile"},
+        "taxonomy": {"$ref": "#/$defs/sylph_taxonomy"}
+      },
+      "oneOf": [
+        {
+          "required": ["fastas"],
+          "not": {"required": ["database"]}
         },
-        "help_full": {
-          "type": "boolean",
-          "description": "Display the full help message."
+        {
+          "required": ["database"],
+          "not": {
+            "anyOf": [
+              {"required": ["fastas"]},
+              {"required": ["build"]}
+            ]
+          }
+        }
+      ]
+    },
+    "sylph_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/sylph_reference"},
+          "default": []
+        }
+      }
+    },
+    "skope_build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kmer_length": {"type": "integer", "minimum": 1, "maximum": 61, "default": 31},
+        "smer_length": {"type": "integer", "minimum": 1, "maximum": 60, "default": 9},
+        "fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 1.0},
+        "individual": {"type": "boolean", "default": false}
+      }
+    },
+    "skope_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 1.0},
+        "abundance_thresholds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 0},
+          "default": [10]
         },
-        "show_hidden": {
-          "type": "boolean",
-          "description": "Display hidden parameters in the help message."
+        "discriminatory": {"type": "boolean", "default": false},
+        "confidence": {"type": "boolean", "default": false},
+        "limit": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "default": null
+        }
+      }
+    },
+    "skope_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/reference_id"},
+        "targets": {"$ref": "#/$defs/artifact_source"},
+        "query_index": {"$ref": "#/$defs/artifact_source"},
+        "build": {"$ref": "#/$defs/skope_build"},
+        "query": {"$ref": "#/$defs/skope_query"}
+      },
+      "oneOf": [
+        {
+          "required": ["targets"],
+          "not": {"required": ["query_index"]}
         },
-        "validate_params": {
-          "type": "boolean",
-          "default": true,
-          "description": "Validate parameters against the pipeline schema.",
-          "hidden": true
-        },
-        "version": {
-          "type": "boolean",
-          "description": "Display the pipeline version.",
-          "hidden": true
+        {
+          "required": ["query_index"],
+          "not": {
+            "anyOf": [
+              {"required": ["targets"]},
+              {"required": ["build"]}
+            ]
+          }
+        }
+      ]
+    },
+    "skope_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/skope_reference"},
+          "default": []
         }
       }
     }
-  },
-  "allOf": [
-    {"$ref": "#/$defs/output_options"},
-    {"$ref": "#/$defs/generic_options"}
-  ]
+  }
 }

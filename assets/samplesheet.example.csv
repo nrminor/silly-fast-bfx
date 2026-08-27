@@ -1,0 +1,3 @@
+sample_id,srr,platform,fastq1,fastq2
+sample-paired,,illumina,/data/sample-paired_R1.fastq.gz,/data/sample-paired_R2.fastq.gz
+sample-single,,ont,/data/sample-single.fastq.gz,

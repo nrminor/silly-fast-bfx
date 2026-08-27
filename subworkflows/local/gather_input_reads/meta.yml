@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "gather_input_reads"
+description: Validate a samplesheet and emit standard input read-set tuples.
+keywords:
+  - samplesheet
+  - fastq
+  - reads
+components: []
+input:
+  - samplesheet:
+      type: file
+      description: NVD-compatible CSV samplesheet.
+output:
+  - reads:
+      type: file
+      description: Metadata and one or two exact local FASTQ paths.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

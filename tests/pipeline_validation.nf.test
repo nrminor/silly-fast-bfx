@@ -1,0 +1,230 @@
+nextflow_pipeline {
+    name "Validate pipeline parameters"
+    script "../main.nf"
+    tag "pipeline"
+    tag "validation"
+
+    test("ordinary runs require a samplesheet") {
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("/input")
+        }
+    }
+
+    test("unknown root parameters are rejected") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                misspelled_parameter = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("misspelled_parameter")
+        }
+    }
+
+    test("malformed nested artifact sources are rejected") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                skip_deacon = true
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        fasta: [kind: "local", url: "https://example.org/reference.fasta"],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("path")
+        }
+    }
+
+    test("enabled tools fail at the unit 01 capability guard") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        index: [kind: "https", url: "https://example.org/reference.idx"],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join('\n').contains("Deacon screening is available in a later review unit")
+        }
+    }
+
+    test("the entry workflow rejects a missing samplesheet") {
+        when {
+            params {
+                input = "/tmp/silly-fast-bfx-missing-samplesheet.csv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("does not exist")
+        }
+    }
+
+    test("an exact-local run without references schedules no tasks") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                outdir = "$outputDir/results"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().isEmpty()
+        }
+    }
+
+    test("a skip flag overrides configured references") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_deacon = true
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        index: [kind: "https", url: "https://example.org/reference.idx"],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().isEmpty()
+        }
+    }
+
+    test("partial nested overrides accept the pinned tools' numeric types") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                deacon = [:]
+                sylph = [
+                    references: [[
+                        id: "reference-a",
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        profile: [min_count_correct: 2.5, min_number_kmers: 50.5],
+                    ]],
+                ]
+                skope = [references: []]
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().isEmpty()
+        }
+    }
+
+    test("the example params YAML validates through the entry workflow") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            def params_file = file("$outputDir/params.example.yaml")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+            params_file.text = file("${projectDir}/assets/params.example.yaml")
+                .readLines()
+                .findAll { line -> !line.startsWith('# yaml-language-server:') }
+                .join('\n') + '\n'
+        }
+
+        when {
+            params {
+                load("$outputDir/params.example.yaml")
+                input = "$outputDir/exact.csv"
+                outdir = "$outputDir/results"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().isEmpty()
+        }
+    }
+
+    test("a params YAML cannot select both sides of a source variant") {
+        setup {
+            def params_file = file("$outputDir/invalid-params.yaml")
+            params_file.parentFile.mkdirs()
+            params_file.text = """\
+input: /tmp/not-read.csv
+skip_deacon: true
+deacon:
+  references:
+    - id: reference-a
+      fasta:
+        kind: local
+        path: /tmp/reference.fasta
+      index:
+        kind: https
+        url: https://example.org/reference.idx
+"""
+        }
+
+        when {
+            params {
+                load("$outputDir/invalid-params.yaml")
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("/deacon/references/0")
+        }
+    }
+
+}

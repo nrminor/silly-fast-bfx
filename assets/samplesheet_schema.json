@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nrminor/silly-fast-bfx/main/assets/samplesheet_schema.json",
+  "title": "silly-fast-bfx samplesheet",
+  "description": "NVD-compatible samplesheet for exact, grouped, or SRA read sources.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["sample_id", "platform"],
+    "properties": {
+      "sample_id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+        "meta": ["id"],
+        "errorMessage": "sample_id must be path-safe and contain only letters, numbers, dots, underscores, or hyphens"
+      },
+      "platform": {
+        "type": "string",
+        "pattern": "(?i)^(illumina|ont|nanopore|oxford_nanopore|oxford-nanopore)$",
+        "meta": ["platform"],
+        "errorMessage": "platform must be illumina, ont, nanopore, oxford_nanopore, or oxford-nanopore"
+      },
+      "srr": {
+        "type": ["string", "null"],
+        "pattern": "(?i)^(|[SED]RR[0-9]+)$",
+        "errorMessage": "srr must be empty or a run accession such as SRR123456"
+      },
+      "fastq1": {
+        "oneOf": [
+          {"type": "null"},
+          {
+            "type": "string",
+            "format": "file-path",
+            "exists": true,
+            "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
+            "not": {"pattern": "[?*\\[\\]{}]"}
+          }
+        ],
+        "errorMessage": "fastq1 must be empty or an existing absolute FASTQ path"
+      },
+      "fastq2": {
+        "oneOf": [
+          {"type": "null"},
+          {
+            "type": "string",
+            "format": "file-path",
+            "exists": true,
+            "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
+            "not": {"pattern": "[?*\\[\\]{}]"}
+          }
+        ],
+        "errorMessage": "fastq2 must be empty or an existing absolute FASTQ path"
+      },
+      "fastq1_glob": {
+        "type": ["string", "null"],
+        "pattern": "^(|/.*\\.(fastq|fq)(\\.gz)?)$",
+        "errorMessage": "fastq1_glob must be empty or an absolute FASTQ glob"
+      },
+      "fastq2_glob": {
+        "type": ["string", "null"],
+        "pattern": "^(|/.*\\.(fastq|fq)(\\.gz)?)$",
+        "errorMessage": "fastq2_glob must be empty or an absolute FASTQ glob"
+      }
+    },
+    "anyOf": [
+      {
+        "properties": {
+          "fastq1": {"type": "string", "minLength": 1}
+        },
+        "required": ["fastq1"]
+      },
+      {
+        "properties": {
+          "fastq1": {"type": "null"},
+          "fastq2": {"type": "null"},
+          "fastq1_glob": {"type": "string", "minLength": 1}
+        },
+        "required": ["fastq1_glob"]
+      },
+      {
+        "properties": {
+          "fastq1": {"type": "null"},
+          "fastq2": {"type": "null"},
+          "fastq1_glob": {"type": "null"},
+          "fastq2_glob": {"type": "null"},
+          "srr": {"type": "string", "minLength": 1}
+        },
+        "required": ["srr"]
+      }
+    ],
+    "errorMessage": "each row requires fastq1, fastq1_glob, or srr; mate 2 cannot appear without mate 1"
+  }
+}

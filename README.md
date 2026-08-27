@@ -1,6 +1,6 @@
 # `nrminor/silly-fast-bfx`
 
-`silly-fast-bfx` is an nf-core-style Nextflow pipeline for extremely fast metagenomics. The repository currently contains only its development, validation, container, and release scaffold; scientific workflow stages will be introduced as real vertical slices rather than placeholders.
+`silly-fast-bfx` is an nf-core-style Nextflow pipeline for rapidly comparing metagenomic screens. The current implementation validates hierarchical tool configuration and NVD-compatible samplesheets and accepts exact local FASTQ inputs. Scientific screening stages are being added as tested vertical slices.
 
 Bootstrap the locked tools, agent reference repositories, Pixi development environment, and uv runtime environment with:
 
@@ -22,6 +22,14 @@ Inspect the pipeline entry point with:
 nextflow run . --help
 nextflow run . --version
 ```
+
+Run with a schema-backed params YAML using:
+
+```bash
+nextflow run . -params-file params.yaml
+```
+
+Start from [`assets/params.example.yaml`](assets/params.example.yaml) and [`assets/samplesheet.example.csv`](assets/samplesheet.example.csv). Replace their illustrative `/data`, `/refs`, and HTTPS locations with real inputs.
 
 Build and smoke-test the process monoimage with:
 
