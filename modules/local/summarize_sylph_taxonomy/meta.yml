@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "summarize_sylph_taxonomy"
+description: Summarize one meaningful raw Sylph profile with explicit taxonomy mappings.
+keywords:
+  - sylph
+  - taxonomy
+  - metagenomics
+tools:
+  - sylph-tax:
+      description: Integrate taxonomy into Sylph metagenomic profiles.
+      homepage: https://github.com/bluenote-1577/sylph-tax
+input:
+  - meta:
+      type: map
+      description: Read-set metadata retained unchanged in the output tuple.
+  - reference:
+      type: map
+      description: Normalized Sylph reference specification with configured taxonomy metadata.
+  - profile:
+      type: file
+      description: Meaningful raw Sylph profile.
+  - taxonomy_metadata:
+      type: file
+      description: One or more explicitly staged taxonomy mapping files in declaration order.
+output:
+  - taxonomy_profiles:
+      type: file
+      description: Tuple of unchanged metadata, reference, and rank-aggregated Sylph taxonomy profile.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

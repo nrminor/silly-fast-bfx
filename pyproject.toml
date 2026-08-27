@@ -20,6 +20,7 @@ requires-pixi = ">=0.77.1,<0.78"
 
 [tool.pixi.dependencies]
 python = "3.12.*"
+sylph-tax = "==1.9.1"
 
 [tool.pixi.feature.dev.dependencies]
 nextflow = "==26.04.6"

@@ -58,5 +58,6 @@ workflow {
         GATHER_INPUT_READS.out.reads,
         PREPARE_REFERENCES.out.deacon,
         PREPARE_REFERENCES.out.sylph,
+        PREPARE_REFERENCES.out.sylph_taxonomy,
     )
 }

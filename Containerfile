@@ -39,9 +39,10 @@ RUN curl --fail --silent --show-error --location https://mise.run | \
     mise trust --all && \
     mise install --locked
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml pixi.lock uv.lock ./
 
-RUN uv sync --locked --no-dev --no-install-project && \
+RUN pixi install --environment default --locked && \
+    uv sync --locked --no-dev --no-install-project && \
     mkdir -p /opt/runtime/bin && \
     cp "$(mise where skope)/skope" /opt/runtime/bin/skope && \
     cp "$(mise where deacon)/deacon" /opt/runtime/bin/deacon && \
@@ -55,7 +56,7 @@ LABEL org.opencontainers.image.description="Process monoimage for nrminor/silly-
 LABEL org.opencontainers.image.licenses="MIT"
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH=/opt/silly-fast-bfx/.venv/bin:/usr/local/bin:${PATH}
+    PATH=/opt/silly-fast-bfx/.venv/bin:/opt/silly-fast-bfx/.pixi/envs/default/bin:/usr/local/bin:${PATH}
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends \
@@ -72,9 +73,11 @@ RUN apt-get update && \
 WORKDIR /opt/silly-fast-bfx
 
 COPY --from=builder /opt/silly-fast-bfx/.venv ./.venv
+COPY --from=builder /opt/silly-fast-bfx/.pixi/envs/default ./.pixi/envs/default
 COPY --from=builder /opt/runtime/bin/ /usr/local/bin/
 
 RUN python -c "import Bio, polars" && \
+    sylph-tax --help >/dev/null && \
     skope --version && \
     deacon --version && \
     sylph --version && \

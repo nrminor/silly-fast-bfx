@@ -1,0 +1,70 @@
+nextflow_process {
+    name "Summarize Sylph taxonomy process"
+    script "../modules/local/summarize_sylph_taxonomy/main.nf"
+    process "SUMMARIZE_SYLPH_TAXONOMY"
+    tag "modules"
+    tag "modules_local"
+
+    test("summarizes explicit mappings and preserves unmatched identifiers") {
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a', 'taxonomy-b']]],
+                    file("\$baseDir/tests/data/sylph/meaningful.profile.tsv"),
+                    [
+                        file("\$baseDir/tests/data/sylph/taxonomy-a.tsv"),
+                        file("\$baseDir/tests/data/sylph/taxonomy-b.tsv"),
+                    ],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.taxonomy_profiles[0]
+            def profile = file(output[2])
+            def text = profile.text
+            def module = file("${projectDir}/modules/local/summarize_sylph_taxonomy/main.nf").text
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[1] == [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a', 'taxonomy-b']]] },
+                { assert profile.name == 'sample-a__input.sylphmpa' },
+                { assert text.contains('d__Bacteria|p__Bacillota|t__matched.fa') },
+                { assert text.contains('d__Archaea|p__Other|t__other.fa') },
+                { assert text.contains('NO_TAXONOMY|t__unmatched.fa:unmatched_contig') },
+                { assert module.contains('--no-config') },
+            )
+        }
+    }
+
+    test("stubs a collision-safe taxonomy profile") {
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'host'],
+                    [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a']]],
+                    file("\$baseDir/tests/data/sylph/meaningful.profile.tsv"),
+                    [file("\$baseDir/tests/data/sylph/taxonomy-a.tsv")],
+                ]
+                """
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.taxonomy_profiles[0]
+            def profile = file(output[2])
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'host'] },
+                { assert output[1] == [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a']]] },
+                { assert profile.name == 'sample-a__deacon-host.sylphmpa' },
+                { assert profile.text.contains('clade_name\trelative_abundance') },
+            )
+        }
+    }
+}

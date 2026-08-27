@@ -1,0 +1,4 @@
+Sample_file	Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	Eff_cov	Contig_name
+sample-a__input	matched.fa	60.0	55.0	98.0	5.0	matched_contig
+sample-a__input	other.fa	25.0	20.0	97.0	4.0	other_contig
+sample-a__input	unmatched.fa	15.0	15.0	96.0	3.0	unmatched_contig

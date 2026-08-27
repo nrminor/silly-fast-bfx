@@ -254,7 +254,10 @@ nextflow_workflow {
                         [kind: 'local', path: file("\$baseDir/tests/data/references/second.fa").toAbsolutePath().toString()],
                         [kind: 'local', path: file("\$baseDir/tests/data/references/first.fa").toAbsolutePath().toString()],
                     ],
-                    taxonomy: [metadata: [[kind: 'local', path: file("\$baseDir/tests/data/references/taxonomy.tsv").toAbsolutePath().toString()]]],
+                    taxonomy: [metadata: [
+                        [kind: 'local', path: file("\$baseDir/tests/data/sylph/taxonomy-b.tsv").toAbsolutePath().toString()],
+                        [kind: 'local', path: file("\$baseDir/tests/data/sylph/taxonomy-a.tsv").toAbsolutePath().toString()],
+                    ]],
                 ]]
                 input[2] = []
                 """
@@ -271,13 +274,14 @@ nextflow_workflow {
                 { assert workflow.success },
                 { assert primary_sources*.logical_basename == ['second.fa', 'first.fa'] },
                 { assert primary_paths.collect { file(it).name } == ['second.fa', 'first.fa'] },
-                { assert taxonomy_sources*.logical_basename == ['taxonomy.tsv'] },
-                { assert taxonomy_paths.collect { file(it).name } == ['taxonomy.tsv'] },
+                { assert taxonomy_sources*.logical_basename == ['taxonomy-b.tsv', 'taxonomy-a.tsv'] },
+                { assert taxonomy_paths.collect { file(it).name } == ['taxonomy-b.tsv', 'taxonomy-a.tsv'] },
                 {
                     assert manifest == [
                         '5047ffd0fa3291e66fc7f6e674cfacd962e52434413179bd0fae0a9a79ed3665  second.fa',
                         'b129b14d0dcb5cfd093a52bf34a1b9c5d37925efa15bf68e07755be610d62e27  first.fa',
-                        '3852eee21f108df9b7e5d002926e66ad891592a630d07e3cbcf7ba571ba46ce7  taxonomy.tsv',
+                        '2da11c4e0c05fb6184ed7b4cfb6b0c41a2b7125ea423a08119b39874a1751ad7  taxonomy-b.tsv',
+                        'a43d30fd1e20587b1301e34203aac5f9aa4b64d466d9ca05e1ad9afd173741dc  taxonomy-a.tsv',
                     ]
                 },
             )

@@ -186,6 +186,42 @@ nextflow_pipeline {
                 { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('SUMMARIZE_SYLPH_TAXONOMY') } == 0 },
+            )
+        }
+    }
+
+    test("configured Sylph taxonomy reaches one meaningful raw profile") {
+        setup {
+            def samplesheet = file("$outputDir/sylph-taxonomy.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/sylph-taxonomy.csv"
+                sylph = [
+                    references: [[
+                        id: "reference-a",
+                        fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                        build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                        sample_sketch: [kmer_length: 31, compression: 2],
+                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        taxonomy: [metadata: [[kind: "local", path: "${projectDir}/tests/data/sylph/taxonomy-a.tsv"]]],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('SUMMARIZE_SYLPH_TAXONOMY') } == 1 },
             )
         }
     }

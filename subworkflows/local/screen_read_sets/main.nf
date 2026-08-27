@@ -2,12 +2,14 @@ include { ENCODE_READS_WITH_BQTOOLS } from '../../../modules/local/encode_reads_
 include { FILTER_READS_WITH_DEACON   } from '../../../modules/local/filter_reads_with_deacon'
 include { SKETCH_READS_WITH_SYLPH    } from '../../../modules/local/sketch_reads_with_sylph'
 include { PROFILE_READS_WITH_SYLPH   } from '../../../modules/local/profile_reads_with_sylph'
+include { SUMMARIZE_SYLPH_TAXONOMY   } from '../../../modules/local/summarize_sylph_taxonomy'
 
 workflow SCREEN_READ_SETS {
     take:
     input_reads
     deacon_references
     sylph_references
+    sylph_taxonomy
 
     main:
     ch_deacon_gate = deacon_references
@@ -73,9 +75,26 @@ workflow SCREEN_READ_SETS {
             tuple(meta, reference, profile)
         }
 
+    ch_sylph_profiles_by_reference = ch_sylph_profiles.map { meta, reference, profile ->
+        tuple(reference.id, meta, reference, profile)
+    }
+
+    ch_sylph_taxonomy_by_reference = sylph_taxonomy.map { reference, sources, taxonomy_metadata ->
+        tuple(reference.id, taxonomy_metadata)
+    }
+
+    ch_sylph_taxonomy_jobs = ch_sylph_profiles_by_reference
+        .combine(ch_sylph_taxonomy_by_reference, by: 0)
+        .map { reference_id, meta, reference, profile, taxonomy_metadata ->
+            tuple(meta, reference, profile, taxonomy_metadata)
+        }
+
+    SUMMARIZE_SYLPH_TAXONOMY(ch_sylph_taxonomy_jobs)
+
     emit:
     deacon = FILTER_READS_WITH_DEACON.out.reads
     filtered_reads = ch_filtered_reads
     sylph = PROFILE_READS_WITH_SYLPH.out.profiles
     sylph_profiles = ch_sylph_profiles
+    sylph_taxonomy = SUMMARIZE_SYLPH_TAXONOMY.out.taxonomy_profiles
 }

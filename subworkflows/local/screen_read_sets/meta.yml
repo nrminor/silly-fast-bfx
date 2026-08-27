@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "screen_read_sets"
-description: Filter read sets with Deacon, derive distinguishable Sylph sample sketches, and profile compatible references.
+description: Filter read sets with Deacon, profile compatible Sylph references, and summarize configured taxonomy.
 keywords:
   - reads
   - deacon
@@ -10,6 +10,7 @@ components:
   - filter_reads_with_deacon
   - sketch_reads_with_sylph
   - profile_reads_with_sylph
+  - summarize_sylph_taxonomy
 input:
   - input_reads:
       type: file
@@ -20,6 +21,9 @@ input:
   - sylph_references:
       type: file
       description: Normalized sample-sketch settings, Sylph reference specifications, and prepared databases.
+  - sylph_taxonomy:
+      type: file
+      description: Sylph reference specifications with ordered explicit taxonomy mappings.
 output:
   - deacon:
       type: file
@@ -33,6 +37,9 @@ output:
   - sylph_profiles:
       type: file
       description: Meaningful raw Sylph profiles without transient flags.
+  - sylph_taxonomy:
+      type: file
+      description: Rank-aggregated taxonomy profiles for meaningful configured raw Sylph profiles.
 authors:
   - "@nrminor"
 maintainers:
