@@ -2,6 +2,7 @@ include { DOWNLOAD_REFERENCE         } from '../../../modules/local/download_ref
 include { VERIFY_REFERENCE           } from '../../../modules/local/verify_reference'
 include { RECORD_REFERENCE_CHECKSUMS } from '../../../modules/local/record_reference_checksums'
 include { BUILD_DEACON_INDEX          } from '../../../modules/local/build_deacon_index'
+include { BUILD_SYLPH_DATABASE        } from '../../../modules/local/build_sylph_database'
 
 workflow PREPARE_REFERENCES {
     take:
@@ -28,13 +29,39 @@ workflow PREPARE_REFERENCES {
             : normalized
     }
 
+    normalized_sylph_references = sylph_references.collect { reference ->
+        def normalized = reference + [
+            sample_sketch: [
+                kmer_length: 31,
+                compression: 200,
+            ] + (reference.sample_sketch ?: [:]),
+            profile: [
+                minimum_ani: 95,
+                min_count_correct: 3,
+                min_number_kmers: 50,
+                redundant_ani: 99,
+            ] + (reference.profile ?: [:]),
+        ]
+
+        reference.fastas
+            ? normalized + [
+                build: [
+                    kmer_length: 31,
+                    compression: 200,
+                    individual_records: false,
+                    min_spacing: 30,
+                ] + (reference.build ?: [:]),
+            ]
+            : normalized
+    }
+
     ch_deacon_source_uses = channel.fromList(normalized_deacon_references).map { reference ->
         def role = reference.fasta ? 'fasta' : 'index'
         def source = reference[role]
         tuple(source.path ?: source.url, 'deacon', reference, role, 0, source)
     }
 
-    ch_sylph_source_uses = channel.fromList(sylph_references).flatMap { reference ->
+    ch_sylph_source_uses = channel.fromList(normalized_sylph_references).flatMap { reference ->
         def primary = reference.fastas
             ? reference.fastas.withIndex().collect { source, order ->
                 tuple(source.path ?: source.url, 'sylph', reference, 'fasta', order, source)
@@ -163,6 +190,45 @@ workflow PREPARE_REFERENCES {
         tuple(reference, primary*.source, primary*.artifact)
     }
 
+    ch_sylph_build_uses = ch_sylph_sources
+        .filter { reference, sources, artifacts -> reference.fastas }
+        .map { reference, sources, fastas ->
+            tuple(
+                [
+                    sources: sources.collect { source ->
+                        [
+                            observed_sha256: source.observed_sha256,
+                            logical_basename: source.logical_basename,
+                        ]
+                    },
+                    settings: reference.build,
+                ],
+                reference,
+                fastas,
+            )
+        }
+
+    ch_sylph_source_builds = ch_sylph_build_uses
+        .map { build, reference, fastas -> tuple(build, fastas) }
+        .unique { build, fastas -> build }
+
+    BUILD_SYLPH_DATABASE(ch_sylph_source_builds)
+
+    ch_sylph_built_references = ch_sylph_build_uses
+        .map { build, reference, fastas -> tuple(build, reference) }
+        .combine(BUILD_SYLPH_DATABASE.out.databases, by: 0)
+        .map { build, reference, database ->
+            tuple(reference.sample_sketch, reference, database)
+        }
+
+    ch_sylph_prebuilt_references = ch_sylph_sources
+        .filter { reference, sources, artifacts -> reference.database }
+        .map { reference, sources, databases ->
+            tuple(reference.sample_sketch, reference, databases[0])
+        }
+
+    ch_sylph_references = ch_sylph_prebuilt_references.mix(ch_sylph_built_references)
+
     ch_sylph_taxonomy = ch_sylph_grouped
         .map { reference, entries ->
             def taxonomy = entries.findAll { entry -> entry.role == 'taxonomy_metadata' }
@@ -192,6 +258,7 @@ workflow PREPARE_REFERENCES {
     emit:
     deacon = ch_deacon_references
     deacon_sources = ch_deacon_sources
+    sylph = ch_sylph_references
     sylph_sources = ch_sylph_sources
     sylph_taxonomy = ch_sylph_taxonomy
     skope_sources = ch_skope_sources

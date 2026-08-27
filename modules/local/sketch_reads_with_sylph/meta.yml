@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "sketch_reads_with_sylph"
+description: Derive one distinguishable Sylph sample sketch from one FASTQ read set.
+keywords:
+  - sylph
+  - reads
+  - sketch
+tools:
+  - sylph:
+      description: Ultrafast genome containment querying and metagenomic profiling.
+      homepage: https://github.com/bluenote-1577/sylph
+input:
+  - sample_sketch:
+      type: map
+      description: Normalized Sylph sample-sketch settings.
+  - meta:
+      type: map
+      description: Read-set metadata retained unchanged in the output tuple.
+  - reads:
+      type: file
+      description: One single-end FASTQ or two paired-end FASTQs.
+output:
+  - sketches:
+      type: file
+      description: Tuple of unchanged settings, read-set metadata, and one distinguishable sample sketch.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

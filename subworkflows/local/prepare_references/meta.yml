@@ -10,6 +10,7 @@ components:
   - verify_reference
   - record_reference_checksums
   - build_deacon_index
+  - build_sylph_database
 input:
   - deacon_references:
       type: list
@@ -27,6 +28,9 @@ output:
   - deacon_sources:
       type: file
       description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
+  - sylph:
+      type: file
+      description: Tuples of normalized sample-sketch settings, Sylph reference specifications, and prepared databases.
   - sylph_sources:
       type: file
       description: Tuples of reference, ordered primary-source metadata with observed checksums, and matching artifacts.

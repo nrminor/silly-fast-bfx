@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "build_sylph_database"
+description: Build a Sylph database from one ordered collection of FASTA reference artifacts.
+keywords:
+  - sylph
+  - database
+  - reference
+tools:
+  - sylph:
+      description: Ultrafast genome containment querying and metagenomic profiling.
+      homepage: https://github.com/bluenote-1577/sylph
+input:
+  - build:
+      type: map
+      description: Build identity containing ordered observed FASTA properties and normalized Sylph settings.
+  - fastas:
+      type: file
+      description: Ordered FASTA reference artifacts.
+output:
+  - databases:
+      type: file
+      description: Tuple of the unchanged build identity and database.syldb.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

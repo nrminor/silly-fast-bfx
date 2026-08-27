@@ -1,0 +1,44 @@
+nextflow_process {
+    name "Sketch reads with Sylph process"
+    script "../modules/local/sketch_reads_with_sylph/main.nf"
+    process "SKETCH_READS_WITH_SYLPH"
+    tag "modules"
+    tag "modules_local"
+
+    test("keeps one single-end sample sketch distinguishable") {
+        when {
+            process {
+                """input[0] = [[kmer_length: 31, compression: 2], [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]]"""
+            }
+        }
+
+        then {
+            def output = process.out.sketches[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [kmer_length: 31, compression: 2] },
+                { assert output[1] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert file(output[2]).name == 'sample-a__input.sylsp' },
+                { assert file(output[2]).size() > 0 },
+            )
+        }
+    }
+
+    test("keeps a paired filtered-read sketch distinguishable when mate basenames collide") {
+        when {
+            process {
+                """input[0] = [[kmer_length: 31, compression: 2], [id: 'sample-a', platform: 'illumina', single_end: false, read_set: 'deacon_filtered', deacon_id: 'host'], [file("\$baseDir/tests/data/deacon/mates/r1/reads.fastq"), file("\$baseDir/tests/data/deacon/mates/r2/reads.fastq")]]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.sketches[0]
+            assertAll(
+                { assert process.success },
+                { assert output[1].deacon_id == 'host' },
+                { assert file(output[2]).name == 'sample-a__deacon-host.paired.sylsp' },
+            )
+        }
+    }
+}

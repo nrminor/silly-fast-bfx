@@ -29,6 +29,7 @@ nextflow_workflow {
                         file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
                     ),
                 )
+                input[2] = channel.empty()
                 """
             }
         }
@@ -68,6 +69,7 @@ nextflow_workflow {
                     [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
                     file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
                 ))
+                input[2] = channel.empty()
                 """
             }
         }
@@ -96,6 +98,7 @@ nextflow_workflow {
                     [file("\$baseDir/tests/data/deacon/matching.fastq")],
                 ))
                 input[1] = channel.empty()
+                input[2] = channel.empty()
                 """
             }
         }
@@ -106,6 +109,160 @@ nextflow_workflow {
                 { assert workflow.trace.tasks().isEmpty() },
                 { assert workflow.out.deacon.isEmpty() },
                 { assert workflow.out.filtered_reads.isEmpty() },
+            )
+        }
+    }
+
+    test("keeps sample sketches separate while reusing each compatible sketch across Sylph references") {
+        setup {
+            run("BUILD_DEACON_INDEX") {
+                script "../modules/local/build_deacon_index/main.nf"
+                process {
+                    """input[0] = [[observed_sha256: 'fixture', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    tuple(
+                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                    ),
+                    tuple(
+                        [id: 'sample-b', platform: 'ont', single_end: true, read_set: 'input'],
+                        [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                    ),
+                )
+                input[1] = BUILD_DEACON_INDEX.out.indexes.map { build, index ->
+                    tuple(
+                        [id: 'deacon-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        index,
+                    )
+                }
+                input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
+                    [
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-a', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-b', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 1], [id: 'sylph-c', sample_sketch: [kmer_length: 31, compression: 1], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, redundant_ani: 99]], database),
+                    ]
+                }
+                """
+            }
+        }
+
+        then {
+            def profiles = workflow.out.sylph.collectEntries { meta, reference, profile, hasRows ->
+                def readSet = meta.read_set == 'input' ? 'input' : "deacon:${meta.deacon_id}"
+                [("${meta.id}:${readSet}:${reference.id}".toString()): [meta: meta, profile: file(profile), hasRows: hasRows]]
+            }
+            def meaningfulProfiles = workflow.out.sylph_profiles.collectEntries { meta, reference, profile ->
+                def readSet = meta.read_set == 'input' ? 'input' : "deacon:${meta.deacon_id}"
+                [("${meta.id}:${readSet}:${reference.id}".toString()): file(profile)]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 8 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 12 },
+                {
+                    assert profiles.keySet() == [
+                        'sample-a:input:sylph-a', 'sample-a:input:sylph-b', 'sample-a:input:sylph-c',
+                        'sample-a:deacon:deacon-a:sylph-a', 'sample-a:deacon:deacon-a:sylph-b', 'sample-a:deacon:deacon-a:sylph-c',
+                        'sample-b:input:sylph-a', 'sample-b:input:sylph-b', 'sample-b:input:sylph-c',
+                        'sample-b:deacon:deacon-a:sylph-a', 'sample-b:deacon:deacon-a:sylph-b', 'sample-b:deacon:deacon-a:sylph-c',
+                    ] as Set
+                },
+                {
+                    assert profiles.values()*.profile*.name as Set == [
+                        'sample-a__input.profile.tsv',
+                        'sample-a__deacon-deacon-a.profile.tsv',
+                        'sample-b__input.profile.tsv',
+                        'sample-b__deacon-deacon-a.profile.tsv',
+                    ] as Set
+                },
+                { assert profiles.findAll { key, output -> key.endsWith(':sylph-c') }.values().every { output -> output.hasRows == 'false' && output.profile.readLines().size() == 1 } },
+                { assert profiles.findAll { key, output -> !key.endsWith(':sylph-c') }.values().every { output -> output.hasRows == 'true' } },
+                {
+                    assert profiles.findAll { key, output -> !key.endsWith(':sylph-c') }.values().every { output ->
+                        def readSetName = output.meta.read_set == 'input'
+                            ? 'input'
+                            : "deacon-${output.meta.deacon_id}"
+                        output.profile.readLines()[1].startsWith("${output.meta.id}__${readSetName}\t")
+                    }
+                },
+                {
+                    assert meaningfulProfiles.keySet() == [
+                        'sample-a:input:sylph-a', 'sample-a:input:sylph-b',
+                        'sample-a:deacon:deacon-a:sylph-a', 'sample-a:deacon:deacon-a:sylph-b',
+                        'sample-b:input:sylph-a', 'sample-b:input:sylph-b',
+                        'sample-b:deacon:deacon-a:sylph-a', 'sample-b:deacon:deacon-a:sylph-b',
+                    ] as Set
+                },
+            )
+        }
+    }
+
+    test("withholds meaningful Deacon-filtered read sets from Sylph when post-Deacon screening is skipped") {
+        setup {
+            run("BUILD_DEACON_INDEX") {
+                script "../modules/local/build_deacon_index/main.nf"
+                process {
+                    """input[0] = [[observed_sha256: 'fixture', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+        }
+
+        when {
+            params {
+                skip_post_deacon = true
+            }
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                ))
+                input[1] = BUILD_DEACON_INDEX.out.indexes.map { build, index ->
+                    tuple(
+                        [id: 'deacon-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        index,
+                    )
+                }
+                input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
+                    tuple(
+                        [kmer_length: 31, compression: 2],
+                        [id: 'sylph-a', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]],
+                        database,
+                    )
+                }
+                """
+            }
+        }
+
+        then {
+            def output = workflow.out.sylph[0]
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+                { assert workflow.out.filtered_reads.size() == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 1 },
+                { assert output[0].read_set == 'input' },
             )
         }
     }

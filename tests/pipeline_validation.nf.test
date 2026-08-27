@@ -146,6 +146,50 @@ nextflow_pipeline {
         }
     }
 
+    test("source-built Sylph references keep compatible databases and sample sketches attached") {
+        setup {
+            def samplesheet = file("$outputDir/sylph-source.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/sylph-source.csv"
+                sylph = [
+                    references: [
+                        [
+                            id: "reference-k31",
+                            fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                            build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                            sample_sketch: [kmer_length: 31, compression: 2],
+                            profile: [min_count_correct: 1, min_number_kmers: 1],
+                        ],
+                        [
+                            id: "reference-k21",
+                            fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                            build: [kmer_length: 21, compression: 2, min_spacing: 2],
+                            sample_sketch: [kmer_length: 21, compression: 2],
+                            profile: [min_count_correct: 1, min_number_kmers: 1],
+                        ],
+                    ],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 2 },
+            )
+        }
+    }
+
     test("the entry workflow rejects a missing samplesheet") {
         when {
             params {
@@ -208,6 +252,48 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.tasks().isEmpty()
+        }
+    }
+
+    test("skip_sylph suppresses only Sylph while Deacon still screens") {
+        setup {
+            def samplesheet = file("$outputDir/skip-sylph.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/skip-sylph.csv"
+                skip_sylph = true
+                deacon = [
+                    references: [[
+                        id: "deacon-a",
+                        index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"],
+                        filter: [abs_threshold: 1, rel_threshold: 0.0],
+                    ]],
+                ]
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        database: [kind: "https", url: "https://fixtures.invalid/reference.syldb"],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+                { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SYLPH_DATABASE') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('SKETCH_READS_WITH_SYLPH') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('PROFILE_READS_WITH_SYLPH') } },
+            )
         }
     }
 

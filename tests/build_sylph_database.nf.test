@@ -1,0 +1,40 @@
+nextflow_process {
+    name "Build Sylph database process"
+    script "../modules/local/build_sylph_database/main.nf"
+    process "BUILD_SYLPH_DATABASE"
+    tag "modules"
+    tag "modules_local"
+
+    test("builds a database from a FASTA input") {
+        when {
+            process {
+                """input[0] = [[sources: [[observed_sha256: '693e1d621be85c13192a492a219e7f89d3991843ae6ccdd64fd7e0d24a0bc98c', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/deacon/reference.fa")]]"""
+            }
+        }
+
+        then {
+            def output = process.out.databases[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].sources*.logical_basename == ['reference.fa'] },
+                { assert output[0].settings.compression == 2 },
+                { assert file(output[1]).name == 'database.syldb' },
+                { assert file(output[1]).size() > 0 },
+            )
+        }
+    }
+
+    test("stubs a database") {
+        when {
+            process {
+                """input[0] = [[sources: [[observed_sha256: '693e1d621be85c13192a492a219e7f89d3991843ae6ccdd64fd7e0d24a0bc98c', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/deacon/reference.fa")]]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            assert process.success
+            assert file(process.out.databases[0][1]).size() > 0
+        }
+    }
+}

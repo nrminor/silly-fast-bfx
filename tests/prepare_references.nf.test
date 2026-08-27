@@ -318,4 +318,97 @@ nextflow_workflow {
         }
     }
 
+    test("uses ordered source properties and normalized settings as Sylph build identity") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = [
+                    [
+                        id: 'shared-defaults',
+                        fastas: [[kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()]],
+                        profile: [minimum_ani: 90],
+                    ],
+                    [
+                        id: 'shared-explicit',
+                        fastas: [[kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()]],
+                        build: [kmer_length: 31, compression: 200, individual_records: false, min_spacing: 30],
+                        sample_sketch: [kmer_length: 21, compression: 100],
+                        profile: [minimum_ani: 99],
+                    ],
+                    [
+                        id: 'forward',
+                        fastas: [
+                            [kind: 'local', path: file("\$baseDir/tests/data/references/first.fa").toAbsolutePath().toString()],
+                            [kind: 'local', path: file("\$baseDir/tests/data/references/second.fa").toAbsolutePath().toString()],
+                        ],
+                    ],
+                    [
+                        id: 'reverse',
+                        fastas: [
+                            [kind: 'local', path: file("\$baseDir/tests/data/references/second.fa").toAbsolutePath().toString()],
+                            [kind: 'local', path: file("\$baseDir/tests/data/references/first.fa").toAbsolutePath().toString()],
+                        ],
+                    ],
+                    [
+                        id: 'renamed',
+                        fastas: [[kind: 'local', path: file("\$baseDir/tests/data/deacon/build_identity/different_basename/renamed.fa").toAbsolutePath().toString()]],
+                    ],
+                    [
+                        id: 'different-settings',
+                        fastas: [[kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()]],
+                        build: [compression: 100],
+                    ],
+                ]
+                input[2] = []
+                """
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def prepared = workflow.out.sylph.collectEntries { sampleSketch, reference, database ->
+                [(reference.id): [sampleSketch: sampleSketch, reference: reference, database: file(database)]]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.sylph.size() == 6 },
+                { assert prepared.keySet() == ['shared-defaults', 'shared-explicit', 'forward', 'reverse', 'renamed', 'different-settings'] as Set },
+                { assert prepared['shared-defaults'].reference.build == [kmer_length: 31, compression: 200, individual_records: false, min_spacing: 30] },
+                { assert prepared['shared-defaults'].sampleSketch == [kmer_length: 31, compression: 200] },
+                { assert prepared['shared-defaults'].reference.profile == [minimum_ani: 90, min_count_correct: 3, min_number_kmers: 50, redundant_ani: 99] },
+                { assert prepared['shared-explicit'].sampleSketch == [kmer_length: 21, compression: 100] },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 5 },
+            )
+        }
+    }
+
+    test("passes a prebuilt Sylph database through without building") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = [[
+                    id: 'prebuilt',
+                    database: [kind: 'local', path: file("\$baseDir/tests/data/sylph/prebuilt.syldb").toAbsolutePath().toString()],
+                    sample_sketch: [compression: 100],
+                    profile: [min_number_kmers: 12],
+                ]]
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            def prepared = workflow.out.sylph[0]
+            assertAll(
+                { assert workflow.success },
+                { assert prepared[0] == [kmer_length: 31, compression: 100] },
+                { assert prepared[1].profile == [minimum_ani: 95, min_count_correct: 3, min_number_kmers: 12, redundant_ani: 99] },
+                { assert file(prepared[2]).name == 'prebuilt.syldb' },
+                { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SYLPH_DATABASE') } },
+            )
+        }
+    }
+
 }

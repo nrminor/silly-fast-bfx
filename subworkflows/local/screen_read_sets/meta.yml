@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "screen_read_sets"
-description: Encode input read sets once and filter them against prepared Deacon reference specifications.
+description: Filter read sets with Deacon, derive distinguishable Sylph sample sketches, and profile compatible references.
 keywords:
   - reads
   - deacon
@@ -8,6 +8,8 @@ keywords:
 components:
   - encode_reads_with_bqtools
   - filter_reads_with_deacon
+  - sketch_reads_with_sylph
+  - profile_reads_with_sylph
 input:
   - input_reads:
       type: file
@@ -15,6 +17,9 @@ input:
   - deacon_references:
       type: file
       description: Normalized Deacon reference specifications and prepared indexes.
+  - sylph_references:
+      type: file
+      description: Normalized sample-sketch settings, Sylph reference specifications, and prepared databases.
 output:
   - deacon:
       type: file
@@ -22,6 +27,12 @@ output:
   - filtered_reads:
       type: file
       description: Meaningful Deacon-filtered read sets as standard FASTQ tuples.
+  - sylph:
+      type: file
+      description: Official raw Sylph profiles with meaningful-data flags.
+  - sylph_profiles:
+      type: file
+      description: Meaningful raw Sylph profiles without transient flags.
 authors:
   - "@nrminor"
 maintainers:

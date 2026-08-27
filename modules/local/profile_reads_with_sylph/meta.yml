@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "profile_reads_with_sylph"
+description: Profile one distinguishable Sylph sample sketch against one reference specification.
+keywords:
+  - sylph
+  - profiling
+  - metagenomics
+tools:
+  - sylph:
+      description: Ultrafast genome containment querying and metagenomic profiling.
+      homepage: https://github.com/bluenote-1577/sylph
+input:
+  - meta:
+      type: map
+      description: Read-set metadata retained unchanged in the output tuple.
+  - reference:
+      type: map
+      description: Normalized Sylph reference specification including profile settings.
+  - sketch:
+      type: file
+      description: One distinguishable Sylph sample sketch.
+  - database:
+      type: file
+      description: Prepared Sylph database.
+output:
+  - profiles:
+      type: file
+      description: Tuple of unchanged metadata, reference, official raw profile, and HAS_PROFILE_ROWS.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"
