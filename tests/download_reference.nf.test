@@ -1,0 +1,27 @@
+nextflow_process {
+    name "Download reference process"
+    script "../modules/local/download_reference/main.nf"
+    process "DOWNLOAD_REFERENCE"
+    tag "modules"
+    tag "modules_local"
+
+    test("stubs an exact HTTPS source without public network access") {
+        when {
+            process {
+                """input[0] = ['https://fixtures.invalid/reference/shared.fa', 'shared.fa']"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.artifacts[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == 'https://fixtures.invalid/reference/shared.fa' },
+                { assert output[1] == 'shared.fa' },
+                { assert file(output[2]).name == 'shared.fa' },
+                { assert file(output[2]).text == 'abc' },
+            )
+        }
+    }
+}

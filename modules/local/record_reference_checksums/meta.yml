@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "record_reference_checksums"
+description: Write one ordered observed-checksum manifest for a reference specification.
+keywords:
+  - reference
+  - provenance
+  - checksum
+tools:
+  - python:
+      description: Python programming language
+      homepage: https://www.python.org/
+input:
+  - tool:
+      type: string
+      description: Search tool whose reference specification owns the manifest.
+  - reference:
+      type: map
+      description: Validated reference specification retained on output.
+  - sources:
+      type: list
+      description: Ordered source records carrying role, location, logical_basename, and observed_sha256.
+output:
+  - manifests:
+      type: file
+      description: Tuple of tool, reference specification, and ordered source.sha256 manifest.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

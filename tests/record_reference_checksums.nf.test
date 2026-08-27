@@ -1,0 +1,42 @@
+nextflow_process {
+    name "Record reference checksums process"
+    script "../modules/local/record_reference_checksums/main.nf"
+    process "RECORD_REFERENCE_CHECKSUMS"
+    tag "modules"
+    tag "modules_local"
+
+    test("writes an ordered manifest for one reference specification") {
+        when {
+            process {
+                """
+                input[0] = [
+                    'sylph',
+                    [id: 'ordered'],
+                    [
+                        [observed_sha256: '5047ffd0fa3291e66fc7f6e674cfacd962e52434413179bd0fae0a9a79ed3665', logical_basename: 'second.fa'],
+                        [observed_sha256: 'b129b14d0dcb5cfd093a52bf34a1b9c5d37925efa15bf68e07755be610d62e27', logical_basename: 'first.fa'],
+                        [observed_sha256: '3852eee21f108df9b7e5d002926e66ad891592a630d07e3cbcf7ba571ba46ce7', logical_basename: 'taxonomy.tsv'],
+                    ],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.manifests[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == 'sylph' },
+                { assert output[1].id == 'ordered' },
+                {
+                    assert file(output[2]).text == [
+                        '5047ffd0fa3291e66fc7f6e674cfacd962e52434413179bd0fae0a9a79ed3665  second.fa',
+                        'b129b14d0dcb5cfd093a52bf34a1b9c5d37925efa15bf68e07755be610d62e27  first.fa',
+                        '3852eee21f108df9b7e5d002926e66ad891592a630d07e3cbcf7ba571ba46ce7  taxonomy.tsv',
+                        '',
+                    ].join('\n')
+                },
+            )
+        }
+    }
+}

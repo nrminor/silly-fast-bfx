@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "download_reference"
+description: Download one HTTPS reference artifact under its controlled logical basename.
+keywords:
+  - reference
+  - download
+  - https
+tools:
+  - python:
+      description: Python programming language
+      homepage: https://www.python.org/
+input:
+  - location:
+      type: string
+      description: Exact HTTPS URL used as the acquisition key.
+  - logical_basename:
+      type: string
+      description: Controlled filename for the staged artifact.
+output:
+  - artifacts:
+      type: file
+      description: Tuple of exact URL, logical basename, and downloaded artifact.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

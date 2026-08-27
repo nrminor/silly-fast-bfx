@@ -1,0 +1,52 @@
+nextflow_process {
+    name "Verify reference process"
+    script "../modules/local/verify_reference/main.nf"
+    process "VERIFY_REFERENCE"
+    tag "modules"
+    tag "modules_local"
+
+    test("records an observed digest without an expected checksum") {
+        when {
+            process {
+                """input[0] = ['/references/shared.fa', 'shared.fa', file("\$baseDir/tests/data/references/shared.fa"), []]"""
+            }
+        }
+
+        then {
+            def output = process.out.artifacts[0]
+            assertAll(
+                { assert process.success },
+                { assert file(output[2]).name == 'shared.fa' },
+                { assert file(output[3]).text == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497\n' },
+            )
+        }
+    }
+
+    test("accepts a matching expected checksum") {
+        when {
+            process {
+                """input[0] = ['/references/shared.fa', 'shared.fa', file("\$baseDir/tests/data/references/shared.fa"), ['083F71E8C14889F31E81A4FD426D5AB2472DA653B23067F7E8E05DCC62E2C497']]"""
+            }
+        }
+
+        then {
+            assert process.success
+            assert file(process.out.artifacts[0][3]).text == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497\n'
+        }
+    }
+
+    test("rejects a mismatching expected checksum") {
+        when {
+            process {
+                """input[0] = ['/references/shared.fa', 'shared.fa', file("\$baseDir/tests/data/references/shared.fa"), ['0000000000000000000000000000000000000000000000000000000000000000']]"""
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.stdout.join('\n').contains('SHA-256 mismatch for /references/shared.fa')
+            assert process.stdout.join('\n').contains('0000000000000000000000000000000000000000000000000000000000000000')
+            assert process.stdout.join('\n').contains('083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497')
+        }
+    }
+}

@@ -1,0 +1,283 @@
+nextflow_workflow {
+    name "Prepare reference artifacts"
+    script "../subworkflows/local/prepare_references/main.nf"
+    workflow "PREPARE_REFERENCES"
+    tag "subworkflows"
+    tag "subworkflows_local"
+
+    test("deduplicates a local artifact and reattaches every reference specification") {
+        when {
+            workflow {
+                """
+                input[0] = [[
+                    id: 'deacon-a',
+                    index: [kind: 'local', path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString(), sha256: '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497'],
+                ]]
+                input[1] = [[
+                    id: 'sylph-a',
+                    database: [kind: 'local', path: "\$baseDir/tests/data/references/same-a/../shared.fa"],
+                ]]
+                input[2] = [[
+                    id: 'skope-a',
+                    query_index: [kind: 'local', path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString()],
+                ]]
+                """
+            }
+        }
+
+        then {
+            def deacon = workflow.out.deacon_sources[0]
+            def sylph = workflow.out.sylph_sources[0]
+            def skope = workflow.out.skope_sources[0]
+            def manifests = workflow.out.checksum_manifests.collectEntries { tool, reference, manifest ->
+                [("${tool}:${reference.id}".toString()): file(manifest).text]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert deacon[0].id == 'deacon-a' },
+                { assert sylph[0].id == 'sylph-a' },
+                { assert skope[0].id == 'skope-a' },
+                { assert deacon[1].observed_sha256 == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497' },
+                { assert sylph[1][0].logical_basename == 'shared.fa' },
+                { assert sylph[1][0].observed_sha256 == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497' },
+                { assert skope[1].logical_basename == 'shared.fa' },
+                { assert skope[1].observed_sha256 == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497' },
+                { assert manifests.keySet() == ['deacon:deacon-a', 'sylph:sylph-a', 'skope:skope-a'] as Set },
+                { assert manifests.values().every { manifest -> manifest == '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497  shared.fa\n' } },
+                { assert workflow.trace.tasks().size() == 4 },
+            )
+        }
+    }
+
+    test("keeps distinct exact HTTPS URLs as distinct acquisitions") {
+        when {
+            workflow {
+                """
+                input[0] = [[
+                    id: 'query-one',
+                    index: [kind: 'https', url: 'https://fixtures.invalid/reference/shared.fa?mirror=one'],
+                ]]
+                input[1] = []
+                input[2] = [[
+                    id: 'query-two',
+                    query_index: [kind: 'https', url: 'https://fixtures.invalid/reference/shared.fa?mirror=two'],
+                ]]
+                """
+            }
+            options '-stub-run'
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.deacon_sources[0][1].url == 'https://fixtures.invalid/reference/shared.fa?mirror=one' },
+                { assert workflow.out.skope_sources[0][1].url == 'https://fixtures.invalid/reference/shared.fa?mirror=two' },
+                { assert workflow.out.checksum_manifests.size() == 2 },
+                { assert workflow.trace.tasks().size() == 6 },
+            )
+        }
+    }
+
+    test("stubs one shared HTTPS acquisition without public network access") {
+        when {
+            workflow {
+                """
+                input[0] = [[
+                    id: 'deacon-remote',
+                    index: [
+                        kind: 'https',
+                        url: 'https://fixtures.invalid/reference/shared.fa',
+                        sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+                    ],
+                ]]
+                input[1] = []
+                input[2] = [[
+                    id: 'skope-remote',
+                    query_index: [kind: 'https', url: 'https://fixtures.invalid/reference/shared.fa'],
+                ]]
+                """
+            }
+            options '-stub-run'
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.deacon_sources[0][0].id == 'deacon-remote' },
+                { assert workflow.out.skope_sources[0][0].id == 'skope-remote' },
+                { assert workflow.out.deacon_sources[0][1].url == 'https://fixtures.invalid/reference/shared.fa' },
+                { assert workflow.out.deacon_sources[0][1].observed_sha256 == 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' },
+                { assert workflow.out.skope_sources[0][1].observed_sha256 == 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' },
+                { assert workflow.trace.tasks().size() == 4 },
+                { assert workflow.out.checksum_manifests.size() == 2 },
+                { assert workflow.out.checksum_manifests.every { tool, reference, manifest -> file(manifest).text == 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  shared.fa\n' } },
+            )
+        }
+    }
+
+    test("preserves Sylph FASTA and taxonomy declaration order") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = [[
+                    id: 'ordered',
+                    fastas: [
+                        [kind: 'local', path: file("\$baseDir/tests/data/references/second.fa").toAbsolutePath().toString()],
+                        [kind: 'local', path: file("\$baseDir/tests/data/references/first.fa").toAbsolutePath().toString()],
+                    ],
+                    taxonomy: [metadata: [[kind: 'local', path: file("\$baseDir/tests/data/references/taxonomy.tsv").toAbsolutePath().toString()]]],
+                ]]
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            def primary_sources = workflow.out.sylph_sources[0][1]
+            def primary_paths = workflow.out.sylph_sources[0][2]
+            def taxonomy_sources = workflow.out.sylph_taxonomy[0][1]
+            def taxonomy_paths = workflow.out.sylph_taxonomy[0][2]
+            def manifest = file(workflow.out.checksum_manifests[0][2]).readLines()
+            assertAll(
+                { assert workflow.success },
+                { assert primary_sources*.logical_basename == ['second.fa', 'first.fa'] },
+                { assert primary_paths.collect { file(it).name } == ['second.fa', 'first.fa'] },
+                { assert taxonomy_sources*.logical_basename == ['taxonomy.tsv'] },
+                { assert taxonomy_paths.collect { file(it).name } == ['taxonomy.tsv'] },
+                {
+                    assert manifest == [
+                        '5047ffd0fa3291e66fc7f6e674cfacd962e52434413179bd0fae0a9a79ed3665  second.fa',
+                        'b129b14d0dcb5cfd093a52bf34a1b9c5d37925efa15bf68e07755be610d62e27  first.fa',
+                        '3852eee21f108df9b7e5d002926e66ad891592a630d07e3cbcf7ba571ba46ce7  taxonomy.tsv',
+                    ]
+                },
+                { assert workflow.trace.tasks().size() == 4 },
+            )
+        }
+    }
+
+    test("checks conflicting assertions once for one shared source") {
+        when {
+            workflow {
+                """
+                input[0] = [
+                    [
+                        id: 'matching',
+                        index: [
+                            kind: 'local',
+                            path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString(),
+                            sha256: '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497',
+                        ],
+                    ],
+                    [
+                        id: 'conflicting',
+                        index: [
+                            kind: 'local',
+                            path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString(),
+                            sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+                        ],
+                    ],
+                ]
+                input[1] = []
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().size() == 1
+            assert workflow.out.deacon_sources.isEmpty()
+            assert workflow.out.checksum_manifests.isEmpty()
+            assert workflow.stdout.join('\n').contains('0000000000000000000000000000000000000000000000000000000000000000')
+        }
+    }
+
+    test("rejects duplicate logical basenames before acquisition") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = [[
+                    id: 'duplicates',
+                    fastas: [
+                        [kind: 'local', path: file("\$baseDir/tests/data/references/same-a/same.fa").toAbsolutePath().toString()],
+                        [kind: 'local', path: file("\$baseDir/tests/data/references/same-b/same.fa").toAbsolutePath().toString()],
+                    ],
+                ]]
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().isEmpty()
+            assert workflow.stdout.join('\n').contains('Duplicate logical basename')
+        }
+    }
+
+    test("rejects duplicate reference IDs before acquisition") {
+        when {
+            workflow {
+                """
+                input[0] = [
+                    [id: 'duplicate', index: [kind: 'local', path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString()]],
+                    [id: 'duplicate', index: [kind: 'local', path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString()]],
+                ]
+                input[1] = []
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().isEmpty()
+            assert workflow.stdout.join('\n').contains('Duplicate Deacon reference ID')
+        }
+    }
+
+    test("rejects an HTTPS source without a logical basename") {
+        when {
+            workflow {
+                """
+                input[0] = [[
+                    id: 'missing-basename',
+                    index: [kind: 'https', url: 'https://fixtures.invalid/reference/'],
+                ]]
+                input[1] = []
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().isEmpty()
+            assert workflow.stdout.join('\n').contains('no usable logical basename')
+        }
+    }
+
+    test("rejects a Nextflow task-control basename before acquisition") {
+        when {
+            workflow {
+                """
+                input[0] = [[
+                    id: 'task-control-name',
+                    index: [kind: 'https', url: 'https://fixtures.invalid/reference/.command.sh'],
+                ]]
+                input[1] = []
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().isEmpty()
+            assert workflow.stdout.join('\n').contains('no usable logical basename')
+        }
+    }
+}

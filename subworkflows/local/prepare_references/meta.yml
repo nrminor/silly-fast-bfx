@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "prepare_references"
+description: Acquire, verify, deduplicate, and reattach configured reference artifacts.
+keywords:
+  - reference
+  - checksum
+  - provenance
+components:
+  - download_reference
+  - verify_reference
+  - record_reference_checksums
+input:
+  - deacon_references:
+      type: list
+      description: Validated Deacon reference specifications.
+  - sylph_references:
+      type: list
+      description: Validated Sylph reference specifications.
+  - skope_references:
+      type: list
+      description: Validated Skope reference specifications.
+output:
+  - deacon_sources:
+      type: file
+      description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
+  - sylph_sources:
+      type: file
+      description: Tuples of reference, ordered primary-source metadata with observed checksums, and matching artifacts.
+  - sylph_taxonomy:
+      type: file
+      description: Tuples of reference, ordered taxonomy-source metadata with observed checksums, and matching artifacts.
+  - skope_sources:
+      type: file
+      description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
+  - checksum_manifests:
+      type: file
+      description: Tuples of tool, reference specification, and one ordered observed-checksum manifest.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"
