@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "preserve_samplesheet"
+description: Copy the validated submitted samplesheet to its stable results-bundle filename.
+keywords:
+  - samplesheet
+  - provenance
+tools:
+  - coreutils:
+      description: GNU core utilities
+      homepage: https://www.gnu.org/software/coreutils/
+input:
+  - samplesheet:
+      type: file
+      description: Validated NVD-compatible CSV samplesheet.
+output:
+  - samplesheet:
+      type: file
+      description: Submitted samplesheet copied to samplesheet.csv.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

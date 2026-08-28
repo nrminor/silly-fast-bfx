@@ -12,11 +12,11 @@
       "format": "path",
       "description": "NVD-compatible samplesheet."
     },
-    "outdir": {
+    "results": {
       "type": "string",
       "format": "path",
       "default": "results",
-      "description": "Directory for the results bundle."
+      "description": "Root directory for the results bundle."
     },
     "skip_deacon": {
       "type": "boolean",
@@ -54,7 +54,7 @@
     },
     "publish_dir_mode": {
       "type": "string",
-      "enum": ["copy", "copyNoFollow", "link", "move", "rellink", "symlink"],
+      "enum": ["copy", "copyNoFollow", "link", "rellink", "symlink"],
       "default": "copy",
       "description": "Nextflow publication mode.",
       "hidden": true

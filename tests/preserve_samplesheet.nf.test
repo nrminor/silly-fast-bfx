@@ -1,0 +1,35 @@
+nextflow_process {
+    name "Preserve submitted samplesheet process"
+    script "../modules/local/preserve_samplesheet/main.nf"
+    process "PRESERVE_SAMPLESHEET"
+    tag "modules"
+    tag "modules_local"
+
+    test("copies the submitted samplesheet to its stable presentation name") {
+        setup {
+            def samplesheet = file("$outputDir/submitted.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,/reads/a_R1.fastq,/reads/a_R2.fastq",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            process {
+                """
+                input[0] = file("$outputDir/submitted.csv")
+                """
+            }
+        }
+
+        then {
+            def preserved = file(process.out.samplesheet[0])
+            assertAll(
+                { assert process.success },
+                { assert preserved.name == "samplesheet.csv" },
+                { assert preserved.text == file("$outputDir/submitted.csv").text },
+            )
+        }
+    }
+}

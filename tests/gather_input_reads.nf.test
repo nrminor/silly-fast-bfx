@@ -29,9 +29,12 @@ nextflow_workflow {
             def reads_by_id = workflow.out.reads.collectEntries { meta, reads ->
                 [(meta.id): [meta: meta, reads: reads.collect { file(it).name }]]
             }
+            def preserved = file(workflow.out.samplesheet[0])
 
             assertAll(
                 { assert workflow.success },
+                { assert preserved.name == "samplesheet.csv" },
+                { assert preserved.text == file("$outputDir/exact.csv").text },
                 { assert reads_by_id.keySet() == ["paired", "single"] as Set },
                 { assert reads_by_id.paired.meta == [id: "paired", platform: "illumina", single_end: false, read_set: "input"] },
                 { assert reads_by_id.paired.reads == ["paired_R1.fastq", "paired_R2.fastq"] },

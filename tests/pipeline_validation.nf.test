@@ -7,7 +7,7 @@ nextflow_pipeline {
     test("ordinary runs require a samplesheet") {
         when {
             params {
-                outdir = "$outputDir"
+                results = "$outputDir"
             }
         }
 
@@ -272,7 +272,7 @@ nextflow_pipeline {
         }
     }
 
-    test("an exact-local run without references schedules no tasks") {
+    test("an exact-local run without references publishes pipeline provenance") {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
@@ -285,13 +285,20 @@ nextflow_pipeline {
         when {
             params {
                 input = "$outputDir/exact.csv"
-                outdir = "$outputDir/results"
+                results = "$outputDir/results"
             }
         }
 
         then {
-            assert workflow.success
-            assert workflow.trace.tasks().isEmpty()
+            def pipelineInfo = file("$outputDir/results/pipeline_info")
+            assertAll(
+                { assert workflow.success },
+                { assert file("$pipelineInfo/samplesheet.csv").text == file("$outputDir/exact.csv").text },
+                { assert file("$pipelineInfo/software_versions.yml").text.contains('Workflow:') },
+                { assert file("$pipelineInfo/execution_report.html").exists() },
+                { assert file("$pipelineInfo/execution_timeline.html").exists() },
+                { assert file("$pipelineInfo/pipeline_dag.html").exists() },
+            )
         }
     }
 
@@ -320,7 +327,9 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            assert workflow.trace.tasks().isEmpty()
+            assert workflow.trace.tasks().every { task ->
+                !task.name.contains('PREPARE_REFERENCES') && !task.name.contains('SCREEN_READ_SETS')
+            }
         }
     }
 
@@ -439,7 +448,6 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            assert workflow.trace.tasks().isEmpty()
         }
     }
 
@@ -462,13 +470,12 @@ nextflow_pipeline {
             params {
                 load("$outputDir/params.example.yaml")
                 input = "$outputDir/exact.csv"
-                outdir = "$outputDir/results"
+                results = "$outputDir/results"
             }
         }
 
         then {
             assert workflow.success
-            assert workflow.trace.tasks().isEmpty()
         }
     }
 

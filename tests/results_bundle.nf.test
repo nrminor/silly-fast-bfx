@@ -1,0 +1,99 @@
+nextflow_pipeline {
+    name "Publish the comparison results bundle"
+    script "../main.nf"
+    tag "pipeline"
+    tag "results_bundle"
+
+    test("publishes one exact-local comparison tree without work artifacts") {
+        setup {
+            def samplesheet = file("$outputDir/samplesheet.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/samplesheet.csv"
+                results = "$outputDir/results"
+                deacon = [
+                    references: [
+                        [
+                            id: "deacon-a",
+                            fasta: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                            filter: [abs_threshold: 1, rel_threshold: 0.0],
+                        ],
+                        [
+                            id: "deacon-empty",
+                            fasta: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                            filter: [abs_threshold: 65535, rel_threshold: 0.0],
+                        ],
+                    ],
+                ]
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                        build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                        sample_sketch: [kmer_length: 31, compression: 2],
+                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        taxonomy: [metadata: [[kind: "local", path: "${projectDir}/tests/data/sylph/taxonomy-a.tsv"]]],
+                    ]],
+                ]
+                skope = [
+                    references: [[
+                        id: "skope-a",
+                        targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                        query: [abundance_thresholds: [1]],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            def results = file("$outputDir/results")
+            def published = []
+            results.eachFileRecurse { path ->
+                if (path.isFile()) {
+                    published << results.toPath().relativize(path.toPath()).toString()
+                }
+            }
+
+            assertAll(
+                { assert workflow.success },
+                {
+                    assert published as Set == [
+                        "deacon/summaries/deacon-a/sample-a.summary.json",
+                        "deacon/reads/deacon-a/sample-a.fastq.gz",
+                        "deacon/summaries/deacon-empty/sample-a.summary.json",
+                        "deacon/reads/deacon-empty/sample-a.fastq.gz",
+                        "sylph/taxonomy/sylph-a/sample-a__input.sylphmpa",
+                        "sylph/taxonomy/sylph-a/sample-a__deacon-deacon-a.sylphmpa",
+                        "sylph/profiles/sylph-a/sample-a__input.profile.tsv",
+                        "sylph/profiles/sylph-a/sample-a__deacon-deacon-a.profile.tsv",
+                        "skope/skope-a/sample-a__input.skope.tsv",
+                        "skope/skope-a/sample-a__deacon-deacon-a.skope.tsv",
+                        "references/deacon/deacon-a/source.sha256",
+                        "references/deacon/deacon-empty/source.sha256",
+                        "references/sylph/sylph-a/source.sha256",
+                        "references/skope/skope-a/source.sha256",
+                        "pipeline_info/samplesheet.csv",
+                        "pipeline_info/software_versions.yml",
+                        "pipeline_info/execution_report.html",
+                        "pipeline_info/execution_timeline.html",
+                        "pipeline_info/pipeline_dag.html",
+                    ] as Set
+                },
+                { assert file("$outputDir/results/pipeline_info/samplesheet.csv").text == file("$outputDir/samplesheet.csv").text },
+                {
+                    def versions = file("$outputDir/results/pipeline_info/software_versions.yml").text
+                    assert versions.contains('GATHER_INPUT_READS:PRESERVE_SAMPLESHEET')
+                    assert versions.contains('SCREEN_READ_SETS:QUERY_READS_WITH_SKOPE')
+                    assert versions.contains('Workflow:')
+                },
+            )
+        }
+    }
+}

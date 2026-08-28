@@ -1,4 +1,5 @@
 include { samplesheetToList } from 'plugin/nf-schema'
+include { PRESERVE_SAMPLESHEET } from '../../../modules/local/preserve_samplesheet'
 
 def normalizePlatform(platform) {
     def normalized_platform = platform.toString().toLowerCase()
@@ -17,6 +18,9 @@ workflow GATHER_INPUT_READS {
         samplesheet,
         "${projectDir}/assets/samplesheet_schema.json",
     )
+
+    PRESERVE_SAMPLESHEET(samplesheet)
+
     ch_input_rows = channel
         .fromList(rows)
         .map { meta, srr, fastq1, fastq2, fastq1_glob, fastq2_glob ->
@@ -29,14 +33,14 @@ workflow GATHER_INPUT_READS {
                 fastq2_glob ?: '',
             )
         }
-        .branch { meta, srr, fastq1, fastq2, fastq1_glob, fastq2_glob ->
+        .branch { _meta, srr, fastq1, _fastq2, fastq1_glob, _fastq2_glob ->
             exact: fastq1
             grouped: fastq1_glob
             sra: srr
         }
 
     ch_exact_reads = ch_input_rows.exact.map {
-        meta, srr, fastq1, fastq2, fastq1_glob, fastq2_glob ->
+        meta, _srr, fastq1, fastq2, _fastq1_glob, _fastq2_glob ->
 
         tuple(
             meta + [
@@ -50,9 +54,13 @@ workflow GATHER_INPUT_READS {
     }
 
     ch_grouped_guard = ch_input_rows.grouped.map {
+        _meta, _srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
+
         error 'Grouped FASTQ input is available in a later review unit'
     }
     ch_sra_guard = ch_input_rows.sra.map {
+        _meta, _srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
+
         error 'SRA input is available in a later review unit'
     }
 
@@ -62,4 +70,5 @@ workflow GATHER_INPUT_READS {
 
     emit:
     reads = ch_input_reads
+    samplesheet = PRESERVE_SAMPLESHEET.out.samplesheet
 }

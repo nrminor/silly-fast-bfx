@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../nextflow_schema.json
 
 input: assets/samplesheet.example.csv
-outdir: results
+results: results
 
 skip_deacon: true
 skip_sylph: true

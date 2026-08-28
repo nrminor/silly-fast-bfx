@@ -7,6 +7,7 @@ include { SCREEN_READ_SETS      } from './subworkflows/local/screen_read_sets'
 include { validate              } from 'plugin/nf-schema'
 
 workflow {
+    main:
     if (params.version) {
         println "${workflow.manifest.name} v${workflow.manifest.version}"
         exit 0
@@ -39,6 +40,8 @@ workflow {
     sylph_enabled = !params.skip_sylph && !sylph_references.isEmpty()
     skope_enabled = !params.skip_skope && !skope_references.isEmpty()
 
+    ch_versions = channel.topic('versions')
+
     GATHER_INPUT_READS(params.input)
 
     active_deacon_references = deacon_references.findAll { deacon_enabled }
@@ -58,4 +61,30 @@ workflow {
         PREPARE_REFERENCES.out.sylph_taxonomy,
         PREPARE_REFERENCES.out.skope,
     )
+
+    ch_workflow_version = channel.of("""
+    Workflow:
+        ${workflow.manifest.name}: v${workflow.manifest.version}
+        Nextflow: ${workflow.nextflow.version}
+    """.stripIndent().trim())
+
+    ch_software_versions = ch_versions
+        .map { versions -> versions.text.trim() }
+        .unique()
+        .mix(ch_workflow_version)
+        .collectFile(
+            storeDir: "${params.results}/pipeline_info",
+            name: 'software_versions.yml',
+            sort: true,
+            newLine: true,
+        )
+
+    publish:
+    submitted_samplesheet = GATHER_INPUT_READS.out.samplesheet
+}
+
+output {
+    submitted_samplesheet {
+        path 'pipeline_info'
+    }
 }
