@@ -1,0 +1,424 @@
+nextflow_process {
+    name "Collate grouped FASTQ process"
+    script "../modules/local/collate_fastq/main.nf"
+    process "COLLATE_FASTQ"
+    tag "modules"
+    tag "modules_local"
+
+    test("concatenates a single-end group in lexical filename order") {
+        setup {
+            def laneTwo = file("$outputDir/lane-2.fastq")
+            def laneTen = file("$outputDir/lane-10.fastq")
+            laneTwo.parentFile.mkdirs()
+            laneTwo.text = "@lane-2\nAC\n+\nII\n"
+            laneTen.text = "@lane-10\nGT\n+\nII\n"
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'sample-a', platform: 'illumina', single_end: true, read_set: 'input'],
+                    [file("$outputDir/lane-2.fastq"), file("$outputDir/lane-10.fastq")],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'sample-a', platform: 'illumina', single_end: true, read_set: 'input'] },
+                { assert file(output[1][0]).name == 'sample-a_R1.fastq' },
+                { assert file(output[1][0]).text == "@lane-10\nGT\n+\nII\n@lane-2\nAC\n+\nII\n" },
+            )
+        }
+    }
+
+    test("pairs and concatenates CASAVA lanes in key order") {
+        setup {
+            [
+                'sample_L002_R2_001.fastq': "@r2-l2\nTT\n+\nII\n",
+                'sample_L001_R1_001.fastq': "@r1-l1\nAC\n+\nII\n",
+                'sample_L002_R1_001.fastq': "@r1-l2\nGT\n+\nII\n",
+                'sample_L001_R2_001.fastq': "@r2-l1\nCA\n+\nII\n",
+            ].each { name, contents ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = contents
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [
+                        file("$outputDir/sample_L001_R1_001.fastq"),
+                        file("$outputDir/sample_L002_R1_001.fastq"),
+                        file("$outputDir/sample_L002_R2_001.fastq"),
+                        file("$outputDir/sample_L001_R2_001.fastq"),
+                    ],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = output[1].collectEntries { read -> [(file(read).name): file(read).text] }
+            assertAll(
+                { assert process.success },
+                { assert reads['paired_R1.fastq'] == "@r1-l1\nAC\n+\nII\n@r1-l2\nGT\n+\nII\n" },
+                { assert reads['paired_R2.fastq'] == "@r2-l1\nCA\n+\nII\n@r2-l2\nTT\n+\nII\n" },
+            )
+        }
+    }
+
+    test("pairs terminal mate markers without emitting staged inputs") {
+        setup {
+            [
+                'terminal_R1_010.fastq': "@r1-10\nAC\n+\nII\n",
+                'terminal_R2_010.fastq': "@r2-10\nCA\n+\nII\n",
+                'terminal_R1_002.fastq': "@r1-2\nGT\n+\nII\n",
+                'terminal_R2_002.fastq': "@r2-2\nTG\n+\nII\n",
+            ].each { name, contents ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = contents
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'terminal', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [
+                        file("$outputDir/terminal_R1_002.fastq"),
+                        file("$outputDir/terminal_R1_010.fastq"),
+                        file("$outputDir/terminal_R2_002.fastq"),
+                        file("$outputDir/terminal_R2_010.fastq"),
+                    ],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = output[1].collectEntries { read -> [(file(read).name): file(read).text] }
+            assertAll(
+                { assert process.success },
+                { assert reads.keySet() == ['terminal_R1.fastq', 'terminal_R2.fastq'] as Set },
+                { assert reads['terminal_R1.fastq'] == "@r1-2\nGT\n+\nII\n@r1-10\nAC\n+\nII\n" },
+                { assert reads['terminal_R2.fastq'] == "@r2-2\nTG\n+\nII\n@r2-10\nCA\n+\nII\n" },
+            )
+        }
+    }
+
+    test("rejects mixed compression within one read set") {
+        setup {
+            def plain = file("$outputDir/plain.fastq")
+            def compressed = file("$outputDir/compressed.fastq.gz")
+            plain.parentFile.mkdirs()
+            plain.text = "@plain\nAC\n+\nII\n"
+            def gzip = new java.util.zip.GZIPOutputStream(compressed.newOutputStream())
+            gzip.write("@gzip\nGT\n+\nII\n".getBytes('UTF-8'))
+            gzip.close()
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'mixed', platform: 'illumina', single_end: true, read_set: 'input'],
+                    [file("$outputDir/plain.fastq"), file("$outputDir/compressed.fastq.gz")],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+    }
+
+    test("rejects unequal paired lane keys") {
+        setup {
+            [
+                'unequal_L001_R1_001.fastq',
+                'unequal_L001_R2_001.fastq',
+                'unequal_L002_R1_001.fastq',
+            ].each { name ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = "@$name\nAC\n+\nII\n"
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'unequal', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [
+                        file("$outputDir/unequal_L001_R1_001.fastq"),
+                        file("$outputDir/unequal_L001_R2_001.fastq"),
+                        file("$outputDir/unequal_L002_R1_001.fastq"),
+                    ],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+    }
+
+    test("rejects duplicate paired keys") {
+        setup {
+            [
+                'duplicate_L001_R1_001.fastq',
+                'duplicate_L001_R1_001.fq',
+                'duplicate_L001_R2_001.fastq',
+            ].each { name ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = "@$name\nAC\n+\nII\n"
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'duplicate', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [
+                        file("$outputDir/duplicate_L001_R1_001.fastq"),
+                        file("$outputDir/duplicate_L001_R1_001.fq"),
+                        file("$outputDir/duplicate_L001_R2_001.fastq"),
+                    ],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+    }
+
+    test("byte-concatenates gzip members without recompression") {
+        setup {
+            ['lane-2.fastq.gz': '@lane-2', 'lane-10.fastq.gz': '@lane-10'].each { name, header ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                def gzip = new java.util.zip.GZIPOutputStream(read.newOutputStream())
+                gzip.write("$header\nAC\n+\nII\n".getBytes('UTF-8'))
+                gzip.close()
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'gzip', platform: 'illumina', single_end: true, read_set: 'input'],
+                    [file("$outputDir/lane-2.fastq.gz"), file("$outputDir/lane-10.fastq.gz")],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def expected = file("$outputDir/lane-10.fastq.gz").bytes.toList() + file("$outputDir/lane-2.fastq.gz").bytes.toList()
+            assertAll(
+                { assert process.success },
+                { assert file(output[1][0]).name == 'gzip_R1.fastq.gz' },
+                { assert file(output[1][0]).bytes.toList() == expected },
+            )
+        }
+    }
+
+    test("stubs paired collated reads") {
+        options "-stub-run"
+
+        setup {
+            ['stub_L001_R1_001.fastq', 'stub_L001_R2_001.fastq'].each { name ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = "@$name\nAC\n+\nII\n"
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'stub', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [file("$outputDir/stub_L001_R1_001.fastq"), file("$outputDir/stub_L001_R2_001.fastq")],
+                    1,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[1].collect { file(it).name } as Set == ['stub_R1.fastq', 'stub_R2.fastq'] as Set },
+            )
+        }
+    }
+
+    test("does not overwrite terminal-marker inputs that match output names") {
+        setup {
+            def r1 = file("$outputDir/collision_R1.fastq")
+            def r2 = file("$outputDir/collision_R2.fastq")
+            r1.parentFile.mkdirs()
+            r1.text = "@r1\nAC\n+\nII\n"
+            r2.text = "@r2\nGT\n+\nII\n"
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'collision', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [file("$outputDir/collision_R1.fastq"), file("$outputDir/collision_R2.fastq")],
+                    1,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            def reads = output[1].collectEntries { read -> [(file(read).name): file(read).text] }
+            assertAll(
+                { assert process.success },
+                { assert reads['collision_R1.fastq'] == "@r1\nAC\n+\nII\n" },
+                { assert reads['collision_R2.fastq'] == "@r2\nGT\n+\nII\n" },
+                { assert file("$outputDir/collision_R1.fastq").text == "@r1\nAC\n+\nII\n" },
+                { assert file("$outputDir/collision_R2.fastq").text == "@r2\nGT\n+\nII\n" },
+            )
+        }
+    }
+
+    test("rejects swapped mate roles") {
+        setup {
+            ['swapped_R1.fastq', 'swapped_R2.fastq'].each { name ->
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = "@$name\nAC\n+\nII\n"
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'swapped', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [file("$outputDir/swapped_R2.fastq"), file("$outputDir/swapped_R1.fastq")],
+                    1,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+    }
+
+    test("stages duplicate single-end basenames without collision") {
+        setup {
+            def first = file("$outputDir/a/reads.fastq")
+            def second = file("$outputDir/b/reads.fastq")
+            first.parentFile.mkdirs()
+            second.parentFile.mkdirs()
+            first.text = "@a\nAC\n+\nII\n"
+            second.text = "@b\nGT\n+\nII\n"
+        }
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'same-name', platform: 'illumina', single_end: true, read_set: 'input'],
+                    [file("$outputDir/a/reads.fastq"), file("$outputDir/b/reads.fastq")],
+                    2,
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert file(output[1][0]).text == "@a\nAC\n+\nII\n@b\nGT\n+\nII\n" },
+            )
+        }
+    }
+
+    test("collates more than 99 staged files") {
+        setup {
+            (1..101).each { index ->
+                def name = "read-${index.toString().padLeft(3, '0')}.fastq"
+                def read = file("$outputDir/$name")
+                read.parentFile.mkdirs()
+                read.text = "@$index\nAC\n+\nII\n"
+            }
+        }
+
+        when {
+            process {
+                """
+                def reads = (1..101).collect { index ->
+                    file("$outputDir/read-" + index.toString().padLeft(3, '0') + ".fastq")
+                }
+                input[0] = [
+                    [id: 'many', platform: 'illumina', single_end: true, read_set: 'input'],
+                    reads,
+                    reads.size(),
+                    ['r1'],
+                ]
+                """
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert file(output[1][0]).text.startsWith("@1\n") },
+                { assert file(output[1][0]).text.endsWith("@101\nAC\n+\nII\n") },
+            )
+        }
+    }
+}

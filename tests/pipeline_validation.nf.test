@@ -113,6 +113,44 @@ nextflow_pipeline {
         }
     }
 
+    test("equivalent exact and grouped inputs preserve downstream task cardinality") {
+        setup {
+            def samplesheet = file("$outputDir/deacon-grouped.csv")
+            def laneOne = file("$outputDir/grouped_L001_R1_001.fastq")
+            def laneTwo = file("$outputDir/grouped_L002_R1_001.fastq")
+            samplesheet.parentFile.mkdirs()
+            laneOne.bytes = file("${projectDir}/tests/data/deacon/matching.fastq").bytes
+            laneTwo.bytes = file("${projectDir}/tests/data/deacon/matching.fastq").bytes
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2,fastq1_glob,fastq2_glob",
+                "exact,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,,,",
+                "grouped,,nanopore,,,$outputDir/grouped_L*_R1_001.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/deacon-grouped.csv"
+                deacon = [
+                    references: [[
+                        id: "reference-a",
+                        index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"],
+                        filter: [abs_threshold: 1, rel_threshold: 0.0],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('COLLATE_FASTQ') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 2 },
+            )
+        }
+    }
+
     test("a source-built Deacon reference reaches screening") {
         setup {
             def samplesheet = file("$outputDir/deacon-source.csv")

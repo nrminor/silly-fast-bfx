@@ -1,4 +1,5 @@
 include { samplesheetToList } from 'plugin/nf-schema'
+include { COLLATE_FASTQ       } from '../../../modules/local/collate_fastq'
 include { PRESERVE_SAMPLESHEET } from '../../../modules/local/preserve_samplesheet'
 
 def normalizePlatform(platform) {
@@ -53,11 +54,31 @@ workflow GATHER_INPUT_READS {
         )
     }
 
-    ch_grouped_guard = ch_input_rows.grouped.map {
-        _meta, _srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
+    ch_grouped_jobs = ch_input_rows.grouped.map {
+        meta, _srr, _fastq1, _fastq2, fastq1_glob, fastq2_glob ->
 
-        error 'Grouped FASTQ input is available in a later review unit'
+        def r1 = [file(fastq1_glob, checkIfExists: true)].flatten().sort {
+            left, right -> left.toString() <=> right.toString()
+        }
+        def r2 = fastq2_glob
+            ? [file(fastq2_glob, checkIfExists: true)].flatten().sort {
+                left, right -> left.toString() <=> right.toString()
+            }
+            : []
+
+        tuple(
+            meta + [
+                single_end: !fastq2_glob,
+                read_set: 'input',
+            ],
+            r1 + r2,
+            r1.size(),
+            r1.collect { path -> path.toString() },
+        )
     }
+
+    COLLATE_FASTQ(ch_grouped_jobs)
+
     ch_sra_guard = ch_input_rows.sra.map {
         _meta, _srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
 
@@ -65,7 +86,7 @@ workflow GATHER_INPUT_READS {
     }
 
     ch_input_reads = ch_exact_reads
-        .mix(ch_grouped_guard)
+        .mix(COLLATE_FASTQ.out.reads)
         .mix(ch_sra_guard)
 
     emit:
