@@ -1,0 +1,118 @@
+nextflow_process {
+    name "Query reads with Skope process"
+    script "../modules/local/query_reads_with_skope/main.nf"
+    process "QUERY_READS_WITH_SKOPE"
+    tag "modules"
+    tag "modules_local"
+
+    test("queries one input read set with confidence output") {
+        setup {
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: true]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
+                    tuple(
+                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [1, 10], discriminatory: false, confidence: true, limit: null]],
+                        [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                        queryIndex,
+                    )
+                }
+                """
+            }
+        }
+
+        then {
+            def output = process.out.results[0]
+            def lines = file(output[2]).readLines()
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[1].id == 'reference-a' },
+                { assert file(output[2]).name == 'sample-a__input.skope.tsv' },
+                { assert lines[0].contains('containment1_ci') },
+                { assert lines[1].startsWith('synthetic-reference\tsample-a__input\t') },
+                { assert lines[2].startsWith('TOTAL\tsample-a__input\t') },
+            )
+        }
+    }
+
+    test("queries a gzip-compressed paired read set as one sample") {
+        setup {
+            def readOne = file("$outputDir/r1/reads.fastq.gz")
+            def readTwo = file("$outputDir/r2/reads.fastq.gz")
+            readOne.parentFile.mkdirs()
+            readTwo.parentFile.mkdirs()
+            new java.util.zip.GZIPOutputStream(readOne.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").bytes)
+            }
+            new java.util.zip.GZIPOutputStream(readTwo.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/mates/r2/reads.fastq").bytes)
+            }
+
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
+                    tuple(
+                        [id: 'paired', platform: 'illumina', single_end: false, read_set: 'deacon_filtered', deacon_id: 'host'],
+                        [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]],
+                        [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz")],
+                        queryIndex,
+                    )
+                }
+                """
+            }
+        }
+
+        then {
+            def output = process.out.results[0]
+            def rows = file(output[2]).readLines().collect { line -> line.split('\t').toList() }
+            def sampleColumn = rows[0].indexOf('sample')
+            def sampleSeqsColumn = rows[0].indexOf('sample_seqs')
+            assertAll(
+                { assert process.success },
+                { assert file(output[2]).name == 'paired__deacon-host.skope.tsv' },
+                { assert rows[1][sampleColumn] == 'paired__deacon-host' },
+                { assert rows[1][sampleSeqsColumn] == '2' },
+                { assert rows[2][sampleColumn] == 'paired__deacon-host' },
+            )
+        }
+    }
+
+    test("stubs a distinguishable Skope result") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]], [file("\$baseDir/tests/data/sylph/reads.fastq")], file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.results[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].read_set == 'input' },
+                { assert output[1].id == 'reference-a' },
+                { assert file(output[2]).name == 'sample-a__input.skope.tsv' },
+                { assert file(output[2]).readLines()[1].startsWith('TOTAL\tsample-a__input\t') },
+            )
+        }
+    }
+}

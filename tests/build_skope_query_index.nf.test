@@ -1,0 +1,45 @@
+nextflow_process {
+    name "Build Skope query index process"
+    script "../modules/local/build_skope_query_index/main.nf"
+    process "BUILD_SKOPE_QUERY_INDEX"
+    tag "modules"
+    tag "modules_local"
+
+    test("builds a query index from a target FASTA") {
+        when {
+            process {
+                """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.query_indexes[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].tool == [name: 'skope', version: '0.4.0'] },
+                { assert output[0].sources*.logical_basename == ['reference.fa'] },
+                { assert output[0].settings.positions == false },
+                { assert file(output[1]).name == 'query_index.sk' },
+                { assert file(output[1]).size() > 0 },
+            )
+        }
+    }
+
+    test("stubs a query index") {
+        when {
+            process {
+                """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: true]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def output = process.out.query_indexes[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0].settings.positions == true },
+                { assert file(output[1]).text == 'stub query index' },
+            )
+        }
+    }
+}

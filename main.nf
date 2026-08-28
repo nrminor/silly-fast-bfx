@@ -39,19 +39,16 @@ workflow {
     sylph_enabled = !params.skip_sylph && !sylph_references.isEmpty()
     skope_enabled = !params.skip_skope && !skope_references.isEmpty()
 
-    if (skope_enabled) {
-        error 'Skope screening is available in a later review unit'
-    }
-
     GATHER_INPUT_READS(params.input)
 
     active_deacon_references = deacon_references.findAll { deacon_enabled }
     active_sylph_references = sylph_references.findAll { sylph_enabled }
+    active_skope_references = skope_references.findAll { skope_enabled }
 
     PREPARE_REFERENCES(
         active_deacon_references,
         active_sylph_references,
-        [],
+        active_skope_references,
     )
 
     SCREEN_READ_SETS(
@@ -59,5 +56,6 @@ workflow {
         PREPARE_REFERENCES.out.deacon,
         PREPARE_REFERENCES.out.sylph,
         PREPARE_REFERENCES.out.sylph_taxonomy,
+        PREPARE_REFERENCES.out.skope,
     )
 }

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "screen_read_sets"
-description: Filter read sets with Deacon, profile compatible Sylph references, and summarize configured taxonomy.
+description: Filter read sets with Deacon and screen input and meaningful filtered read sets with Sylph and Skope.
 keywords:
   - reads
   - deacon
@@ -11,6 +11,7 @@ components:
   - sketch_reads_with_sylph
   - profile_reads_with_sylph
   - summarize_sylph_taxonomy
+  - query_reads_with_skope
 input:
   - input_reads:
       type: file
@@ -24,6 +25,9 @@ input:
   - sylph_taxonomy:
       type: file
       description: Sylph reference specifications with ordered explicit taxonomy mappings.
+  - skope_references:
+      type: file
+      description: Normalized Skope reference specifications and prepared query indexes.
 output:
   - deacon:
       type: file
@@ -40,6 +44,9 @@ output:
   - sylph_taxonomy:
       type: file
       description: Rank-aggregated taxonomy profiles for meaningful configured raw Sylph profiles.
+  - skope:
+      type: file
+      description: Skope query results with separate read-set and reference metadata.
 authors:
   - "@nrminor"
 maintainers:

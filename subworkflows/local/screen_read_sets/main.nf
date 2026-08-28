@@ -3,6 +3,7 @@ include { FILTER_READS_WITH_DEACON   } from '../../../modules/local/filter_reads
 include { SKETCH_READS_WITH_SYLPH    } from '../../../modules/local/sketch_reads_with_sylph'
 include { PROFILE_READS_WITH_SYLPH   } from '../../../modules/local/profile_reads_with_sylph'
 include { SUMMARIZE_SYLPH_TAXONOMY   } from '../../../modules/local/summarize_sylph_taxonomy'
+include { QUERY_READS_WITH_SKOPE      } from '../../../modules/local/query_reads_with_skope'
 
 workflow SCREEN_READ_SETS {
     take:
@@ -10,6 +11,7 @@ workflow SCREEN_READ_SETS {
     deacon_references
     sylph_references
     sylph_taxonomy
+    skope_references
 
     main:
     ch_deacon_gate = deacon_references
@@ -91,10 +93,19 @@ workflow SCREEN_READ_SETS {
 
     SUMMARIZE_SYLPH_TAXONOMY(ch_sylph_taxonomy_jobs)
 
+    ch_skope_jobs = ch_search_reads
+        .combine(skope_references)
+        .map { meta, reads, reference, query_index ->
+            tuple(meta, reference, reads, query_index)
+        }
+
+    QUERY_READS_WITH_SKOPE(ch_skope_jobs)
+
     emit:
     deacon = FILTER_READS_WITH_DEACON.out.reads
     filtered_reads = ch_filtered_reads
     sylph = PROFILE_READS_WITH_SYLPH.out.profiles
     sylph_profiles = ch_sylph_profiles
     sylph_taxonomy = SUMMARIZE_SYLPH_TAXONOMY.out.taxonomy_profiles
+    skope = QUERY_READS_WITH_SKOPE.out.results
 }

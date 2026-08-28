@@ -31,6 +31,7 @@ nextflow_workflow {
                 )
                 input[2] = channel.empty()
                 input[3] = channel.empty()
+                input[4] = channel.empty()
                 """
             }
         }
@@ -72,6 +73,7 @@ nextflow_workflow {
                 ))
                 input[2] = channel.empty()
                 input[3] = channel.empty()
+                input[4] = channel.empty()
                 """
             }
         }
@@ -102,6 +104,7 @@ nextflow_workflow {
                 input[1] = channel.empty()
                 input[2] = channel.empty()
                 input[3] = channel.empty()
+                input[4] = channel.empty()
                 """
             }
         }
@@ -159,6 +162,7 @@ nextflow_workflow {
                     ]
                 }
                 input[3] = channel.empty()
+                input[4] = channel.empty()
                 """
             }
         }
@@ -215,7 +219,7 @@ nextflow_workflow {
         }
     }
 
-    test("withholds meaningful Deacon-filtered read sets from Sylph when post-Deacon screening is skipped") {
+    test("withholds meaningful Deacon-filtered read sets from searches when post-Deacon screening is skipped") {
         setup {
             run("BUILD_DEACON_INDEX") {
                 script "../modules/local/build_deacon_index/main.nf"
@@ -227,6 +231,12 @@ nextflow_workflow {
                 script "../modules/local/build_sylph_database/main.nf"
                 process {
                     """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
                 }
             }
         }
@@ -255,6 +265,12 @@ nextflow_workflow {
                     )
                 }
                 input[3] = channel.empty()
+                input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
+                    tuple(
+                        [id: 'skope-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]],
+                        queryIndex,
+                    )
+                }
                 """
             }
         }
@@ -268,6 +284,8 @@ nextflow_workflow {
                 { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 1 },
                 { assert output[0].read_set == 'input' },
+                { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 1 },
+                { assert workflow.out.skope[0][0].read_set == 'input' },
             )
         }
     }
@@ -301,6 +319,7 @@ nextflow_workflow {
                     tuple([id: 'configured'], [], [file("\$baseDir/tests/data/sylph/taxonomy-a.tsv")]),
                     tuple([id: 'empty'], [], [file("\$baseDir/tests/data/sylph/taxonomy-a.tsv")]),
                 )
+                input[4] = channel.empty()
                 """
             }
         }
@@ -320,6 +339,70 @@ nextflow_workflow {
                 { assert workflow.out.sylph_taxonomy.size() == 1 },
                 { assert taxonomy[1].id == 'configured' },
                 { assert file(taxonomy[2]).name == 'sample-a__input.sylphmpa' },
+            )
+        }
+    }
+
+    test("queries every input and meaningful filtered read set against every Skope reference") {
+        setup {
+            run("BUILD_DEACON_INDEX") {
+                script "../modules/local/build_deacon_index/main.nf"
+                process {
+                    """input[0] = [[observed_sha256: 'fixture', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                ))
+                input[1] = BUILD_DEACON_INDEX.out.indexes.map { build, index ->
+                    tuple(
+                        [id: 'deacon-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        index,
+                    )
+                }
+                input[2] = channel.empty()
+                input[3] = channel.empty()
+                input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.flatMap { build, queryIndex ->
+                    [
+                        tuple([id: 'skope-a', query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-b', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: true, confidence: false, limit: null]], queryIndex),
+                    ]
+                }
+                """
+            }
+        }
+
+        then {
+            def results = workflow.out.skope.collectEntries { meta, reference, result ->
+                def readSet = meta.read_set == 'input' ? 'input' : "deacon:${meta.deacon_id}"
+                [("${meta.id}:${readSet}:${reference.id}".toString()): [meta: meta, reference: reference, result: file(result)]]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 4 },
+                {
+                    assert results.keySet() == [
+                        'sample-a:input:skope-a',
+                        'sample-a:input:skope-b',
+                        'sample-a:deacon:deacon-a:skope-a',
+                        'sample-a:deacon:deacon-a:skope-b',
+                    ] as Set
+                },
+                { assert results.values().every { output -> output.meta.id == 'sample-a' && output.reference.id.startsWith('skope-') } },
+                { assert results.values()*.result*.name as Set == ['sample-a__input.skope.tsv', 'sample-a__deacon-deacon-a.skope.tsv'] as Set },
             )
         }
     }

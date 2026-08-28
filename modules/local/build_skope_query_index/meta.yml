@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "build_skope_query_index"
+description: Build a reusable Skope query index from one target FASTA artifact.
+keywords:
+  - skope
+  - query
+  - index
+  - reference
+tools:
+  - skope:
+      description: Accelerated genome containment and abundance estimation.
+      homepage: https://github.com/bede/skope
+input:
+  - build:
+      type: map
+      description: Skope build identity containing the pinned tool, ordered source properties, and normalized settings.
+  - targets:
+      type: file
+      description: Target FASTA artifact.
+output:
+  - query_indexes:
+      type: file
+      description: Tuple of the unchanged build identity and query_index.sk.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

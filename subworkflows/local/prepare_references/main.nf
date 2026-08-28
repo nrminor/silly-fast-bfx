@@ -3,6 +3,7 @@ include { VERIFY_REFERENCE           } from '../../../modules/local/verify_refer
 include { RECORD_REFERENCE_CHECKSUMS } from '../../../modules/local/record_reference_checksums'
 include { BUILD_DEACON_INDEX          } from '../../../modules/local/build_deacon_index'
 include { BUILD_SYLPH_DATABASE        } from '../../../modules/local/build_sylph_database'
+include { BUILD_SKOPE_QUERY_INDEX     } from '../../../modules/local/build_skope_query_index'
 
 workflow PREPARE_REFERENCES {
     take:
@@ -55,6 +56,36 @@ workflow PREPARE_REFERENCES {
             : normalized
     }
 
+    normalized_skope_references = skope_references.collect { reference ->
+        def query = [
+            fraction: 1.0,
+            abundance_thresholds: [10],
+            discriminatory: false,
+            confidence: false,
+            limit: null,
+        ] + (reference.query ?: [:])
+        def normalized = reference + [
+            query: query + [fraction: query.fraction.toDouble()],
+        ]
+        def build = reference.targets
+            ? [
+                kmer_length: 31,
+                smer_length: 9,
+                fraction: 1.0,
+                individual: false,
+            ] + (reference.build ?: [:])
+            : null
+
+        reference.targets
+            ? normalized + [
+                build: build + [
+                    fraction: build.fraction.toDouble(),
+                    positions: normalized.query.confidence,
+                ],
+            ]
+            : normalized
+    }
+
     ch_deacon_source_uses = channel.fromList(normalized_deacon_references).map { reference ->
         def role = reference.fasta ? 'fasta' : 'index'
         def source = reference[role]
@@ -73,7 +104,7 @@ workflow PREPARE_REFERENCES {
         }
     }
 
-    ch_skope_source_uses = channel.fromList(skope_references).map { reference ->
+    ch_skope_source_uses = channel.fromList(normalized_skope_references).map { reference ->
         def role = reference.targets ? 'targets' : 'query_index'
         def source = reference[role]
         tuple(source.path ?: source.url, 'skope', reference, role, 0, source)
@@ -240,6 +271,40 @@ workflow PREPARE_REFERENCES {
         tool, reference, role, order, source, artifact -> tuple(reference, source, artifact)
     }
 
+    ch_skope_build_uses = ch_skope_sources
+        .filter { reference, source, artifact -> reference.targets }
+        .map { reference, source, targets ->
+            tuple(
+                [
+                    tool: [name: 'skope', version: '0.4.0'],
+                    sources: [[
+                        observed_sha256: source.observed_sha256,
+                        logical_basename: source.logical_basename,
+                    ]],
+                    settings: reference.build,
+                ],
+                reference,
+                targets,
+            )
+        }
+
+    ch_skope_source_builds = ch_skope_build_uses
+        .map { build, reference, targets -> tuple(build, targets) }
+        .unique { build, targets -> build }
+
+    BUILD_SKOPE_QUERY_INDEX(ch_skope_source_builds)
+
+    ch_skope_built_references = ch_skope_build_uses
+        .map { build, reference, targets -> tuple(build, reference) }
+        .combine(BUILD_SKOPE_QUERY_INDEX.out.query_indexes, by: 0)
+        .map { build, reference, query_index -> tuple(reference, query_index) }
+
+    ch_skope_prebuilt_references = ch_skope_sources
+        .filter { reference, source, artifact -> reference.query_index }
+        .map { reference, source, query_index -> tuple(reference, query_index) }
+
+    ch_skope_references = ch_skope_prebuilt_references.mix(ch_skope_built_references)
+
     ch_deacon_manifest_jobs = ch_deacon_sources.map { reference, source, artifact ->
         tuple('deacon', reference, [source])
     }
@@ -261,6 +326,7 @@ workflow PREPARE_REFERENCES {
     sylph = ch_sylph_references
     sylph_sources = ch_sylph_sources
     sylph_taxonomy = ch_sylph_taxonomy
+    skope = ch_skope_references
     skope_sources = ch_skope_sources
     checksum_manifests = RECORD_REFERENCE_CHECKSUMS.out.manifests
 }

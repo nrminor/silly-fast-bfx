@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "query_reads_with_skope"
+description: Query one FASTQ read set against one prepared Skope reference specification.
+keywords:
+  - skope
+  - query
+  - containment
+  - metagenomics
+tools:
+  - skope:
+      description: Accelerated genome containment and abundance estimation.
+      homepage: https://github.com/bede/skope
+input:
+  - meta:
+      type: map
+      description: Read-set metadata retained unchanged in the output tuple.
+  - reference:
+      type: map
+      description: Normalized Skope reference specification including query settings.
+  - reads:
+      type: file
+      description: One single-end FASTQ or a paired FASTQ read set.
+  - query_index:
+      type: file
+      description: Prepared Skope query index.
+output:
+  - results:
+      type: file
+      description: Tuple of unchanged read-set metadata, reference specification, and Skope TSV result.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

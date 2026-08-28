@@ -226,6 +226,39 @@ nextflow_pipeline {
         }
     }
 
+    test("a source-built Skope reference reaches input-read screening") {
+        setup {
+            def samplesheet = file("$outputDir/skope-source.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/skope-source.csv"
+                skope = [
+                    references: [[
+                        id: "reference-a",
+                        targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                        query: [abundance_thresholds: [1], confidence: true],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SKOPE_QUERY_INDEX') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 1 },
+                { assert workflow.trace.tasks().every { !it.name.contains('ENCODE_READS_WITH_BQTOOLS') } },
+            )
+        }
+    }
+
     test("the entry workflow rejects a missing samplesheet") {
         when {
             params {
@@ -329,6 +362,51 @@ nextflow_pipeline {
                 { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SYLPH_DATABASE') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('SKETCH_READS_WITH_SYLPH') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('PROFILE_READS_WITH_SYLPH') } },
+            )
+        }
+    }
+
+    test("skip_skope suppresses only Skope while Sylph still screens") {
+        setup {
+            def samplesheet = file("$outputDir/skip-skope.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/skip-skope.csv"
+                skip_skope = true
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                        build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                        sample_sketch: [kmer_length: 31, compression: 2],
+                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                    ]],
+                ]
+                skope = [
+                    references: [[
+                        id: "skope-a",
+                        query_index: [kind: "https", url: "https://fixtures.invalid/reference.sk"],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 1 },
+                { assert workflow.trace.tasks().every { !it.name.contains('DOWNLOAD_REFERENCE') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SKOPE_QUERY_INDEX') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('QUERY_READS_WITH_SKOPE') } },
             )
         }
     }

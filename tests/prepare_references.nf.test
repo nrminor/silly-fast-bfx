@@ -415,4 +415,96 @@ nextflow_workflow {
         }
     }
 
+    test("uses source properties and normalized settings as Skope build identity") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = []
+                input[2] = [
+                    [
+                        id: 'shared-defaults',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
+                    ],
+                    [
+                        id: 'shared-explicit',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
+                        build: [kmer_length: 31, smer_length: 9, fraction: 1.0d, individual: false],
+                        query: [fraction: 1.0d, abundance_thresholds: [20], discriminatory: true, confidence: false, limit: '1G'],
+                    ],
+                    [
+                        id: 'confidence',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
+                        query: [confidence: true],
+                    ],
+                    [
+                        id: 'renamed',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/build_identity/different_basename/renamed.fa").toAbsolutePath().toString()],
+                    ],
+                    [
+                        id: 'different-settings',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
+                        build: [fraction: 0.5],
+                    ],
+                ]
+                """
+            }
+            options '-stub-run'
+        }
+
+        then {
+            def prepared = workflow.out.skope.collectEntries { reference, queryIndex ->
+                [(reference.id): [reference: reference, queryIndex: file(queryIndex)]]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.skope.size() == 5 },
+                { assert prepared.keySet() == ['shared-defaults', 'shared-explicit', 'confidence', 'renamed', 'different-settings'] as Set },
+                { assert prepared['shared-defaults'].reference.build == [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false] },
+                { assert prepared['shared-defaults'].reference.query == [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null] },
+                { assert prepared['shared-explicit'].reference.query.abundance_thresholds == [20] },
+                { assert prepared.confidence.reference.build.positions == true },
+                { assert prepared['shared-defaults'].queryIndex == prepared['shared-explicit'].queryIndex },
+                { assert prepared['different-settings'].reference.build.fraction == 0.5 },
+                {
+                    assert [
+                        prepared['shared-defaults'].queryIndex,
+                        prepared.confidence.queryIndex,
+                        prepared.renamed.queryIndex,
+                        prepared['different-settings'].queryIndex,
+                    ].toSet().size() == 4
+                },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SKOPE_QUERY_INDEX') } == 4 },
+            )
+        }
+    }
+
+    test("passes a prebuilt Skope query index through without building") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = []
+                input[2] = [[
+                    id: 'prebuilt',
+                    query_index: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.k31w15.idx").toAbsolutePath().toString()],
+                    query: [abundance_thresholds: [5]],
+                ]]
+                """
+            }
+        }
+
+        then {
+            def prepared = workflow.out.skope[0]
+            assertAll(
+                { assert workflow.success },
+                { assert prepared[0].id == 'prebuilt' },
+                { assert prepared[0].query == [fraction: 1.0, abundance_thresholds: [5], discriminatory: false, confidence: false, limit: null] },
+                { assert !prepared[0].containsKey('build') },
+                { assert file(prepared[1]).name == 'reference.k31w15.idx' },
+                { assert workflow.trace.tasks().count { it.name.contains('PREPARE_REFERENCES:BUILD_SKOPE_QUERY_INDEX') } == 0 },
+            )
+        }
+    }
+
 }

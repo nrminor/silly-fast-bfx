@@ -11,6 +11,7 @@ components:
   - record_reference_checksums
   - build_deacon_index
   - build_sylph_database
+  - build_skope_query_index
 input:
   - deacon_references:
       type: list
@@ -37,6 +38,9 @@ output:
   - sylph_taxonomy:
       type: file
       description: Tuples of reference, ordered taxonomy-source metadata with observed checksums, and matching artifacts.
+  - skope:
+      type: file
+      description: Tuples of normalized Skope reference specifications and prepared query indexes.
   - skope_sources:
       type: file
       description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
