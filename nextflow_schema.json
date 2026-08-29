@@ -35,15 +35,18 @@
     },
     "deacon": {
       "$ref": "#/$defs/deacon_configuration",
-      "default": {}
+      "default": {},
+      "description": "Named Deacon reference specifications used to produce filtered read sets."
     },
     "sylph": {
       "$ref": "#/$defs/sylph_configuration",
-      "default": {}
+      "default": {},
+      "description": "Named Sylph reference specifications used to sketch and profile selected read sets."
     },
     "skope": {
       "$ref": "#/$defs/skope_configuration",
-      "default": {}
+      "default": {},
+      "description": "Named Skope reference specifications used to query selected read sets."
     },
     "monoimage": {
       "type": "string",
@@ -87,7 +90,8 @@
   "$defs": {
     "reference_id": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "description": "Identifier unique within one tool's reference specifications; used in results paths and read-set selections."
     },
     "read_sets": {
       "type": "object",
@@ -120,7 +124,8 @@
     },
     "sha256": {
       "type": "string",
-      "pattern": "^[A-Fa-f0-9]{64}$"
+      "pattern": "^[A-Fa-f0-9]{64}$",
+      "description": "Optional expected SHA-256 digest; the pipeline verifies it and always records the observed digest."
     },
     "artifact_source": {
       "oneOf": [
@@ -129,13 +134,20 @@
           "additionalProperties": false,
           "required": ["kind", "path"],
           "properties": {
-            "kind": {"const": "local"},
+            "kind": {
+              "const": "local",
+              "description": "Read the artifact from a local filesystem path."
+            },
             "path": {
               "type": "string",
               "format": "path",
-              "pattern": "^/"
+              "pattern": "^/",
+              "description": "Absolute path to an existing local reference artifact or source file."
             },
-            "sha256": {"$ref": "#/$defs/sha256"}
+            "sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "Optional expected SHA-256 digest for this local artifact."
+            }
           }
         },
         {
@@ -143,13 +155,20 @@
           "additionalProperties": false,
           "required": ["kind", "url"],
           "properties": {
-            "kind": {"const": "https"},
+            "kind": {
+              "const": "https",
+              "description": "Download the artifact from an HTTPS URL."
+            },
             "url": {
               "type": "string",
               "format": "uri",
-              "pattern": "^https://"
+              "pattern": "^https://",
+              "description": "HTTPS URL of the reference artifact or source file."
             },
-            "sha256": {"$ref": "#/$defs/sha256"}
+            "sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "Optional expected SHA-256 digest for the downloaded artifact."
+            }
           }
         }
       ]
@@ -158,24 +177,55 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "kmer_length": {"type": "integer", "minimum": 1, "default": 31},
-        "window_size": {"type": "integer", "minimum": 1, "default": 15}
+        "kmer_length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 31,
+          "description": "K-mer length for a source-built Deacon minimizer index; k plus window size minus one must be at most 96 and odd."
+        },
+        "window_size": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15,
+          "description": "Minimizer window size for a source-built Deacon index; larger windows select fewer minimizers."
+        }
       }
     },
     "deacon_filter": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "abs_threshold": {"type": "integer", "minimum": 1, "default": 2},
-        "rel_threshold": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.01},
-        "prefix_length": {"type": "integer", "minimum": 0, "default": 0},
+        "abs_threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2,
+          "description": "Minimum absolute number of index minimizer hits required for a sequence record to match."
+        },
+        "rel_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.01,
+          "description": "Minimum proportion of a sequence record's minimizers that must hit the index, from 0 to 1."
+        },
+        "prefix_length": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Number of leading nucleotides searched in each sequence record; zero searches the entire record."
+        },
         "complexity_threshold": {
           "type": ["number", "null"],
           "minimum": 0,
           "maximum": 1,
-          "default": null
+          "default": null,
+          "description": "Ignore minimizers below this kdust complexity score from 0 to 1; null leaves complexity filtering disabled."
         },
-        "deplete": {"type": "boolean", "default": false}
+        "deplete": {
+          "type": "boolean",
+          "default": false,
+          "description": "When false, retain matching records; when true, discard matching records and retain the complement."
+        }
       }
     },
     "deacon_reference": {
@@ -183,11 +233,26 @@
       "additionalProperties": false,
       "required": ["id"],
       "properties": {
-        "id": {"$ref": "#/$defs/reference_id"},
-        "fasta": {"$ref": "#/$defs/artifact_source"},
-        "index": {"$ref": "#/$defs/artifact_source"},
-        "build": {"$ref": "#/$defs/deacon_build"},
-        "filter": {"$ref": "#/$defs/deacon_filter"}
+        "id": {
+          "$ref": "#/$defs/reference_id",
+          "description": "Deacon reference ID attached to its filtered read sets and results."
+        },
+        "fasta": {
+          "$ref": "#/$defs/artifact_source",
+          "description": "FASTA or FASTQ source from which the pipeline builds a Deacon minimizer index."
+        },
+        "index": {
+          "$ref": "#/$defs/artifact_source",
+          "description": "Prebuilt Deacon minimizer index; mutually exclusive with fasta and build."
+        },
+        "build": {
+          "$ref": "#/$defs/deacon_build",
+          "description": "Index-construction settings used only when fasta is supplied."
+        },
+        "filter": {
+          "$ref": "#/$defs/deacon_filter",
+          "description": "Settings that decide which input sequence records enter this Deacon-filtered read set."
+        }
       },
       "oneOf": [
         {
@@ -213,7 +278,8 @@
           "type": "array",
           "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/deacon_reference"},
-          "default": []
+          "default": [],
+          "description": "Deacon reference specifications; an empty list creates no Deacon work."
         }
       }
     },
@@ -221,28 +287,79 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "kmer_length": {"type": "integer", "enum": [21, 31], "default": 31},
-        "compression": {"type": "integer", "minimum": 1, "default": 200},
-        "individual_records": {"type": "boolean", "default": false},
-        "min_spacing": {"type": "integer", "minimum": 0, "default": 30}
+        "kmer_length": {
+          "type": "integer",
+          "enum": [21, 31],
+          "default": 31,
+          "description": "K-mer length encoded in a source-built Sylph database; sample sketches queried against it must use the same value."
+        },
+        "compression": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 200,
+          "description": "Sylph database subsampling rate; smaller values retain more k-mers and increase database size and work."
+        },
+        "individual_records": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat each FASTA record as a separate reference genome instead of combining records by input file."
+        },
+        "min_spacing": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 30,
+          "description": "Minimum spacing between selected k-mers on reference genomes; this setting does not apply to sample read sketches."
+        }
       }
     },
     "sylph_sample_sketch": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "kmer_length": {"type": "integer", "enum": [21, 31], "default": 31},
-        "compression": {"type": "integer", "minimum": 1, "default": 200}
+        "kmer_length": {
+          "type": "integer",
+          "enum": [21, 31],
+          "default": 31,
+          "description": "K-mer length for sample read sketches; it must match the queried Sylph database."
+        },
+        "compression": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 200,
+          "description": "Sample-sketch subsampling rate; smaller values retain more k-mers and increase sensitivity, sketch size, and work."
+        }
       }
     },
     "sylph_profile": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "minimum_ani": {"type": "number", "minimum": 0, "maximum": 100, "default": 95},
-        "min_count_correct": {"type": "number", "minimum": 0, "default": 3},
-        "min_number_kmers": {"type": "number", "minimum": 0, "default": 50},
-        "redundant_ani": {"type": "number", "minimum": 0, "maximum": 100, "default": 99}
+        "minimum_ani": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 95,
+          "description": "Minimum adjusted average nucleotide identity percentage reported by Sylph profile; values below 95 can be inaccurate."
+        },
+        "min_count_correct": {
+          "type": "number",
+          "minimum": 0,
+          "default": 3,
+          "description": "Minimum k-mer multiplicity used for coverage correction; higher values favor precision over sensitivity."
+        },
+        "min_number_kmers": {
+          "type": "number",
+          "minimum": 0,
+          "default": 50,
+          "description": "Exclude reference genomes represented by fewer than this many sampled k-mers."
+        },
+        "redundant_ani": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 99,
+          "description": "Rough ANI percentage threshold at which Sylph removes redundant reference genomes during profiling."
+        }
       }
     },
     "sylph_taxonomy": {
@@ -253,7 +370,8 @@
         "metadata": {
           "type": "array",
           "minItems": 1,
-          "items": {"$ref": "#/$defs/artifact_source"}
+          "items": {"$ref": "#/$defs/artifact_source"},
+          "description": "One or more explicit sylph-tax metadata mappings applied to meaningful profiles from this reference specification."
         }
       }
     },
@@ -262,18 +380,40 @@
       "additionalProperties": false,
       "required": ["id", "read_sets"],
       "properties": {
-        "id": {"$ref": "#/$defs/reference_id"},
+        "id": {
+          "$ref": "#/$defs/reference_id",
+          "description": "Sylph reference ID used in process tags and results paths."
+        },
         "fastas": {
           "type": "array",
           "minItems": 1,
-          "items": {"$ref": "#/$defs/artifact_source"}
+          "items": {"$ref": "#/$defs/artifact_source"},
+          "description": "Ordered FASTA sources from which the pipeline builds one Sylph database."
         },
-        "database": {"$ref": "#/$defs/artifact_source"},
-        "read_sets": {"$ref": "#/$defs/read_sets"},
-        "build": {"$ref": "#/$defs/sylph_build"},
-        "sample_sketch": {"$ref": "#/$defs/sylph_sample_sketch"},
-        "profile": {"$ref": "#/$defs/sylph_profile"},
-        "taxonomy": {"$ref": "#/$defs/sylph_taxonomy"}
+        "database": {
+          "$ref": "#/$defs/artifact_source",
+          "description": "Prebuilt Sylph .syldb database; mutually exclusive with fastas and build."
+        },
+        "read_sets": {
+          "$ref": "#/$defs/read_sets",
+          "description": "Input and exact Deacon-filtered read sets profiled against this Sylph database."
+        },
+        "build": {
+          "$ref": "#/$defs/sylph_build",
+          "description": "Database-construction settings used only when fastas are supplied."
+        },
+        "sample_sketch": {
+          "$ref": "#/$defs/sylph_sample_sketch",
+          "description": "Settings used to sketch each selected read set before profiling."
+        },
+        "profile": {
+          "$ref": "#/$defs/sylph_profile",
+          "description": "Settings applied when profiling selected sample sketches against this database."
+        },
+        "taxonomy": {
+          "$ref": "#/$defs/sylph_taxonomy",
+          "description": "Optional explicit metadata mappings for producing taxonomy summaries in addition to raw profiles."
+        }
       },
       "oneOf": [
         {
@@ -299,7 +439,8 @@
           "type": "array",
           "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/sylph_reference"},
-          "default": []
+          "default": [],
+          "description": "Sylph reference specifications; an empty list creates no Sylph work."
         }
       }
     },
@@ -307,29 +448,67 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "kmer_length": {"type": "integer", "minimum": 1, "maximum": 61, "default": 31},
-        "smer_length": {"type": "integer", "minimum": 1, "maximum": 60, "default": 9},
-        "fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 1.0},
-        "individual": {"type": "boolean", "default": false}
+        "kmer_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 61,
+          "default": 31,
+          "description": "K-mer length for the Skope query index; it must be greater than the S-mer length."
+        },
+        "smer_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 9,
+          "description": "Odd S-mer length used for open-syncmer selection; it must be smaller than the K-mer length."
+        },
+        "fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Fraction of target syncmers retained in a source-built query index; smaller values reduce index size and evidence."
+        },
+        "individual": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat each target FASTA record separately instead of merging all records into one target."
+        }
       }
     },
     "skope_query": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 1.0},
+        "fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Fraction of target syncmers considered during query, from greater than zero through one; prebuilt query indexes use their embedded fraction instead."
+        },
         "abundance_thresholds": {
           "type": "array",
           "minItems": 1,
           "items": {"type": "integer", "minimum": 0},
-          "default": [10]
+          "default": [10],
+          "description": "Additional syncmer-abundance thresholds for containment estimates; each value adds threshold-specific output columns."
         },
-        "discriminatory": {"type": "boolean", "default": false},
-        "confidence": {"type": "boolean", "default": false},
+        "discriminatory": {
+          "type": "boolean",
+          "default": false,
+          "description": "Consider only syncmers unique to each target when estimating containment."
+        },
+        "confidence": {
+          "type": "boolean",
+          "default": false,
+          "description": "Report confidence intervals, ANI estimates, and patchiness; the pipeline stores positions in source-built indexes when enabled, while prebuilt indexes must already contain positions."
+        },
         "limit": {
           "type": ["string", "null"],
           "minLength": 1,
-          "default": null
+          "default": null,
+          "description": "Approximate number of sample bases processed before stopping, such as 50M or 10G; null reads the complete read set."
         }
       }
     },
@@ -338,12 +517,30 @@
       "additionalProperties": false,
       "required": ["id", "read_sets"],
       "properties": {
-        "id": {"$ref": "#/$defs/reference_id"},
-        "targets": {"$ref": "#/$defs/artifact_source"},
-        "query_index": {"$ref": "#/$defs/artifact_source"},
-        "read_sets": {"$ref": "#/$defs/read_sets"},
-        "build": {"$ref": "#/$defs/skope_build"},
-        "query": {"$ref": "#/$defs/skope_query"}
+        "id": {
+          "$ref": "#/$defs/reference_id",
+          "description": "Skope reference ID used in process tags and results paths."
+        },
+        "targets": {
+          "$ref": "#/$defs/artifact_source",
+          "description": "Target FASTA or FASTQ source from which the pipeline builds a Skope query index."
+        },
+        "query_index": {
+          "$ref": "#/$defs/artifact_source",
+          "description": "Prebuilt Skope query index; mutually exclusive with targets and build."
+        },
+        "read_sets": {
+          "$ref": "#/$defs/read_sets",
+          "description": "Input and exact Deacon-filtered read sets queried against this Skope index."
+        },
+        "build": {
+          "$ref": "#/$defs/skope_build",
+          "description": "Query-index construction settings used only when targets are supplied."
+        },
+        "query": {
+          "$ref": "#/$defs/skope_query",
+          "description": "Settings applied when querying each selected read set against this index."
+        }
       },
       "oneOf": [
         {
@@ -369,7 +566,8 @@
           "type": "array",
           "uniqueEntries": ["id"],
           "items": {"$ref": "#/$defs/skope_reference"},
-          "default": []
+          "default": [],
+          "description": "Skope reference specifications; an empty list creates no Skope work."
         }
       }
     }

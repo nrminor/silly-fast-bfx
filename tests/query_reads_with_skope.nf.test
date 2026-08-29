@@ -40,7 +40,8 @@ nextflow_process {
                 { assert file(output[2]).name == 'sample-a__input.skope.tsv' },
                 { assert lines[0].contains('containment1_ci') },
                 { assert lines[1].startsWith('synthetic-reference\tsample-a__input\t') },
-                { assert lines[2].startsWith('TOTAL\tsample-a__input\t') },
+                { assert lines.size() == 2 },
+                { assert lines.every { line -> !line.startsWith('TOTAL\t') } },
             )
         }
     }
@@ -91,7 +92,8 @@ nextflow_process {
                 { assert file(output[2]).name == 'paired__deacon-host.skope.tsv' },
                 { assert rows[1][sampleColumn] == 'paired__deacon-host' },
                 { assert rows[1][sampleSeqsColumn] == '2' },
-                { assert rows[2][sampleColumn] == 'paired__deacon-host' },
+                { assert rows.size() == 2 },
+                { assert rows.every { row -> row[0] != 'TOTAL' } },
             )
         }
     }
@@ -111,7 +113,8 @@ nextflow_process {
                 { assert output[0].read_set == 'input' },
                 { assert output[1].id == 'reference-a' },
                 { assert file(output[2]).name == 'sample-a__input.skope.tsv' },
-                { assert file(output[2]).readLines()[1].startsWith('TOTAL\tsample-a__input\t') },
+                { assert file(output[2]).readLines()[1].startsWith('stub-target\tsample-a__input\t') },
+                { assert file(output[2]).readLines().every { line -> !line.startsWith('TOTAL\t') } },
             )
         }
     }

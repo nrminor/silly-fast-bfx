@@ -1,5 +1,5 @@
 process QUERY_READS_WITH_SKOPE {
-    tag "${meta.id}:${reference.id}"
+    tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
     tuple val(meta),
@@ -24,6 +24,7 @@ process QUERY_READS_WITH_SKOPE {
     """
     skope query \
         --names ${prefix} \
+        --no-total \
         --fraction ${reference.query.fraction} \
         --abundance-thresholds ${reference.query.abundance_thresholds.join(',')} \
         ${discriminatory_arg} \
@@ -47,7 +48,7 @@ process QUERY_READS_WITH_SKOPE {
     def result = "${prefix}.skope.tsv"
     """
     printf '%s\n' 'target\tsample\tcontainment1\tcontainment1_hits\tmedian_nz_abundance\ttarget_kmers\ttarget_length\tsample_seqs\tsample_bases' > ${result}
-    printf '%s\n' 'TOTAL\t${prefix}\t0.000\t0\t0\t0\t0\t0\t0' >> ${result}
+    printf '%s\n' 'stub-target\t${prefix}\t0.000\t0\t0\t0\t0\t0\t0' >> ${result}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         skope: "stub"

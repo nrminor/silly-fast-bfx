@@ -1,5 +1,5 @@
 process SUMMARIZE_SYLPH_TAXONOMY {
-    tag "${meta.id}:${reference.id}"
+    tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
     tuple val(meta),

@@ -1,4 +1,5 @@
 process PRESERVE_SAMPLESHEET {
+    tag "${samplesheet.name}"
 
     input:
     path samplesheet, stageAs: 'submitted.csv'

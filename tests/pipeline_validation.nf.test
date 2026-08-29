@@ -109,6 +109,51 @@ nextflow_pipeline {
         }
     }
 
+    test("every user-facing schema property provides hover documentation") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                results = "$outputDir/results"
+            }
+        }
+
+        then {
+            def schema = new groovy.json.JsonSlurper().parse(file("${projectDir}/nextflow_schema.json"))
+            def missing = []
+            def inspect
+            inspect = { node, path ->
+                (node.properties ?: [:]).each { name, property ->
+                    def propertyPath = path ? "${path}.${name}" : name
+                    if (!(path == '' && property.hidden) && !property.description) {
+                        missing << propertyPath
+                    }
+                    inspect(property, propertyPath)
+                }
+                (node.'$defs' ?: [:]).each { name, definition ->
+                    inspect(definition, "\$defs.${name}")
+                }
+                (node.oneOf ?: []).eachWithIndex { branch, index ->
+                    inspect(branch, "${path}.oneOf[${index}]")
+                }
+            }
+            inspect(schema, '')
+
+            assertAll(
+                { assert workflow.success },
+                { assert missing.isEmpty(): "Missing schema descriptions: ${missing.join(', ')}" },
+            )
+        }
+    }
+
     test("duplicate reference IDs are rejected by the parameter schema") {
         setup {
             def samplesheet = file("$outputDir/exact.csv")

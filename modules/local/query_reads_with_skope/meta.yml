@@ -26,7 +26,7 @@ input:
 output:
   - results:
       type: file
-      description: Tuple of unchanged read-set metadata, reference specification, and Skope TSV result.
+      description: Tuple of unchanged read-set metadata, reference specification, and target-level Skope TSV result without TOTAL summary rows.
   - versions:
       type: file
       description: Software versions topic.

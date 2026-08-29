@@ -1,5 +1,5 @@
 process PROFILE_READS_WITH_SYLPH {
-    tag "${meta.id}:${reference.id}"
+    tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
     tuple val(meta), val(reference), path(sketch), path(database)

@@ -1,5 +1,5 @@
 process VERIFY_REFERENCE {
-    tag "${tool}:${reference.id}:${role}"
+    tag "${tool}:${reference.id}:${role}:${order}"
 
     input:
     tuple val(tool), val(reference), val(role), val(order), val(source), path(artifact)
