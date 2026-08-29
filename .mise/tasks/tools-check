@@ -4,6 +4,7 @@ set -euo pipefail
 
 uv run --locked --no-dev python -c "import Bio, polars"
 sylph-tax --help >/dev/null
+sracha --help >/dev/null
 "$(mise where skope)/skope" --version
 "$(mise where deacon)/deacon" --version
 "$(mise where sylph)/bin/sylph" --version

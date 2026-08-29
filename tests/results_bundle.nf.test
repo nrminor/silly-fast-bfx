@@ -96,4 +96,67 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("publishes provenance for SRA inputs without configured searches") {
+        setup {
+            def samplesheet = file("$outputDir/sra-samplesheet.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "single-sra,SRR000001,ont,,",
+                "paired-sra,SRR000002,illumina,,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/sra-samplesheet.csv"
+                results = "$outputDir/sra-results"
+            }
+        }
+
+        then {
+            def versions = file("$outputDir/sra-results/pipeline_info/software_versions.yml").text
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('VALIDATE_SRACHA_RUN') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('DOWNLOAD_SRACHA_FASTQ') } == 2 },
+                { assert file("$outputDir/sra-results/pipeline_info/samplesheet.csv").text == file("$outputDir/sra-samplesheet.csv").text },
+                { assert versions.contains('GATHER_INPUT_READS:VALIDATE_SRACHA_RUN') },
+                { assert versions.contains('GATHER_INPUT_READS:DOWNLOAD_SRACHA_FASTQ') },
+                { assert versions.contains('sracha: "0.5.0"') },
+                { assert versions.contains('Workflow:') },
+            )
+        }
+    }
+
+    test("stubs SRA acquisition with its versions contract") {
+        options '-stub-run'
+
+        setup {
+            def samplesheet = file("$outputDir/stub-sra-samplesheet.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "stub-sra,DRR000001,ont,,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/stub-sra-samplesheet.csv"
+                results = "$outputDir/stub-sra-results"
+            }
+        }
+
+        then {
+            def versions = file("$outputDir/stub-sra-results/pipeline_info/software_versions.yml").text
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('VALIDATE_SRACHA_RUN') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('DOWNLOAD_SRACHA_FASTQ') } == 1 },
+                { assert versions.contains('sracha: "stub"') },
+            )
+        }
+    }
 }

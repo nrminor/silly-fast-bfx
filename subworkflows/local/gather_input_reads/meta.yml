@@ -7,7 +7,9 @@ keywords:
   - reads
 components:
   - collate_fastq
+  - download_sracha_fastq
   - preserve_samplesheet
+  - validate_sracha_run
 input:
   - samplesheet:
       type: file
@@ -15,7 +17,7 @@ input:
 output:
   - reads:
       type: file
-      description: Metadata and one or two exact or collated grouped local FASTQ paths.
+      description: Metadata and one or two exact, collated grouped, or SRA-derived FASTQ paths.
   - samplesheet:
       type: file
       description: Submitted samplesheet copied to its stable results-bundle filename.

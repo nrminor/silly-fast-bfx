@@ -34,6 +34,8 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert !workflow.trace.tasks().any { it.name.contains('COLLATE_FASTQ') } },
+                { assert !workflow.trace.tasks().any { it.name.contains('VALIDATE_SRACHA_RUN') } },
+                { assert !workflow.trace.tasks().any { it.name.contains('DOWNLOAD_SRACHA_FASTQ') } },
                 { assert preserved.name == "samplesheet.csv" },
                 { assert preserved.text == file("$outputDir/exact.csv").text },
                 { assert reads_by_id.keySet() == ["paired", "single"] as Set },
@@ -59,7 +61,7 @@ nextflow_workflow {
             }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2,fastq1_glob,fastq2_glob",
-                "grouped,,illumina,,,$outputDir/grouped_L*_R1_001.fastq,$outputDir/grouped_L*_R2_001.fastq",
+                "grouped,SRR000002,illumina,,,$outputDir/grouped_L*_R1_001.fastq,$outputDir/grouped_L*_R2_001.fastq",
             ].join('\n') + '\n'
         }
 
@@ -77,6 +79,8 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('COLLATE_FASTQ') } == 1 },
+                { assert !workflow.trace.tasks().any { it.name.contains('VALIDATE_SRACHA_RUN') } },
+                { assert !workflow.trace.tasks().any { it.name.contains('DOWNLOAD_SRACHA_FASTQ') } },
                 { assert output[0] == [id: 'grouped', platform: 'illumina', single_end: false, read_set: 'input'] },
                 { assert reads['grouped_R1.fastq'].startsWith('@r1-l1') },
                 { assert reads['grouped_R2.fastq'].startsWith('@r2-l1') },
@@ -84,13 +88,14 @@ nextflow_workflow {
         }
     }
 
-    test("rejects SRA rows until unit 09") {
+    test("downloads single- and paired-read SRA rows") {
         setup {
             def samplesheet = file("$outputDir/sra.csv")
             samplesheet.parentFile.mkdirs()
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sra,SRR123456,illumina,,",
+                "single-sra,srr000001,Oxford_Nanopore,,",
+                "paired-sra,SRR000002,illumina,,",
             ].join('\n') + '\n'
         }
 
@@ -103,8 +108,19 @@ nextflow_workflow {
         }
 
         then {
-            assert workflow.failed
-            assert workflow.stdout.join('\n').contains("SRA input is available in a later review unit")
+            def reads_by_id = workflow.out.reads.collectEntries { meta, reads ->
+                [(meta.id): [meta: meta, reads: reads.collect { file(it).name }]]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('VALIDATE_SRACHA_RUN') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('DOWNLOAD_SRACHA_FASTQ') } == 2 },
+                { assert reads_by_id.keySet() == ['single-sra', 'paired-sra'] as Set },
+                { assert reads_by_id['single-sra'].meta == [id: 'single-sra', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert reads_by_id['single-sra'].reads == ['SRR000001.fastq.gz'] },
+                { assert reads_by_id['paired-sra'].meta == [id: 'paired-sra', platform: 'illumina', single_end: false, read_set: 'input'] },
+                { assert reads_by_id['paired-sra'].reads == ['SRR000002_1.fastq.gz', 'SRR000002_2.fastq.gz'] },
+            )
         }
     }
 

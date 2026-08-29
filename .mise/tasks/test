@@ -2,4 +2,5 @@
 #MISE description="Run the nf-test suite"
 set -euo pipefail
 
-pixi run --environment dev nf-test test
+# Keep network-dependent tests under tests/remote opt-in.
+pixi run --environment dev nf-test test tests/*.nf.test

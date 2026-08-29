@@ -1,0 +1,87 @@
+nextflow_process {
+    name "Download Sracha FASTQ process"
+    script "../modules/local/download_sracha_fastq/main.nf"
+    process "DOWNLOAD_SRACHA_FASTQ"
+    tag "modules"
+    tag "modules_local"
+
+    test("emits one FASTQ for a single-read run") {
+        when {
+            process {
+                """input[0] = [[id: 'single', platform: 'ont'], 'SRR000001']"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'single', platform: 'ont'] },
+                { assert output[1].collect { file(it).name } == ['SRR000001.fastq.gz'] },
+            )
+        }
+    }
+
+    test("emits two FASTQs for a paired-read run") {
+        when {
+            process {
+                """input[0] = [[id: 'paired', platform: 'illumina'], 'SRR000002']"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'paired', platform: 'illumina'] },
+                { assert output[1].collect { file(it).name } as Set == ['SRR000002_1.fastq.gz', 'SRR000002_2.fastq.gz'] as Set },
+            )
+        }
+    }
+
+    test("rejects three FASTQs from one run") {
+        when {
+            process {
+                """input[0] = [[id: 'orphan', platform: 'illumina'], 'SRR000003']"""
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+    }
+
+    test("fails after two retries when a download remains unavailable") {
+        when {
+            process {
+                """input[0] = [[id: 'missing', platform: 'illumina'], 'SRR000000']"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.trace.tasks().size() == 3 },
+            )
+        }
+    }
+
+    test("stubs one downloaded FASTQ") {
+        options '-stub-run'
+
+        when {
+            process {
+                """input[0] = [[id: 'stub', platform: 'ont'], 'DRR000001']"""
+            }
+        }
+
+        then {
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'stub', platform: 'ont'] },
+                { assert output[1].collect { file(it).name } == ['DRR000001.fastq.gz'] },
+            )
+        }
+    }
+}

@@ -1,6 +1,8 @@
 include { samplesheetToList } from 'plugin/nf-schema'
-include { COLLATE_FASTQ       } from '../../../modules/local/collate_fastq'
+include { COLLATE_FASTQ        } from '../../../modules/local/collate_fastq'
+include { DOWNLOAD_SRACHA_FASTQ } from '../../../modules/local/download_sracha_fastq'
 include { PRESERVE_SAMPLESHEET } from '../../../modules/local/preserve_samplesheet'
+include { VALIDATE_SRACHA_RUN   } from '../../../modules/local/validate_sracha_run'
 
 def normalizePlatform(platform) {
     def normalized_platform = platform.toString().toLowerCase()
@@ -79,15 +81,32 @@ workflow GATHER_INPUT_READS {
 
     COLLATE_FASTQ(ch_grouped_jobs)
 
-    ch_sra_guard = ch_input_rows.sra.map {
-        _meta, _srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
+    ch_sra_runs = ch_input_rows.sra.map {
+        meta, srr, _fastq1, _fastq2, _fastq1_glob, _fastq2_glob ->
 
-        error 'SRA input is available in a later review unit'
+        tuple(meta, srr.toUpperCase())
+    }
+
+    VALIDATE_SRACHA_RUN(ch_sra_runs)
+    DOWNLOAD_SRACHA_FASTQ(VALIDATE_SRACHA_RUN.out.runs)
+
+    ch_sra_reads = DOWNLOAD_SRACHA_FASTQ.out.reads.map { meta, reads ->
+        def ordered_reads = [reads].flatten().sort {
+            left, right -> left.toString() <=> right.toString()
+        }
+
+        tuple(
+            meta + [
+                single_end: ordered_reads.size() == 1,
+                read_set: 'input',
+            ],
+            ordered_reads,
+        )
     }
 
     ch_input_reads = ch_exact_reads
         .mix(COLLATE_FASTQ.out.reads)
-        .mix(ch_sra_guard)
+        .mix(ch_sra_reads)
 
     emit:
     reads = ch_input_reads

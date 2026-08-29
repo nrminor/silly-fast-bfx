@@ -78,6 +78,7 @@ COPY --from=builder /opt/runtime/bin/ /usr/local/bin/
 
 RUN python -c "import Bio, polars" && \
     sylph-tax --help >/dev/null && \
+    sracha --help >/dev/null && \
     skope --version && \
     deacon --version && \
     sylph --version && \

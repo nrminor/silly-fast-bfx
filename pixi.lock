@@ -26,6 +26,7 @@ environments:
     - https://pypi.org/simple
     packages:
       linux-64:
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sracha-0.5.0-h54198d6_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/backports.zstd-1.7.0-py312h3f22e6b_0.conda
@@ -76,6 +77,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/62/60/64deacb3abc70c52e2d88a808a052d1621c86a48fe9194f2c065579ab1cd/polars_runtime_32-1.43.2-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/a9/28/7898c2061966d6d62f0bb2e53cd5e1b3bb3053d2bc431f299802faca23cc/biopython-1.87-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       linux-aarch64:
+      - conda: https://conda.anaconda.org/bioconda/linux-aarch64/sracha-0.5.0-h389c417_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/backports.zstd-1.7.0-py312h22d1088_0.conda
@@ -127,6 +129,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c1/40/37c45bb4b5e345664bd970c3294349d1e35d4ad5794f808324bbef6ff9e7/biopython-1.87-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/osx-arm64/sracha-0.5.0-h1a4e967_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.7.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/charset-normalizer-3.5.1-pyhd8ed1ab_0.conda
@@ -179,6 +182,7 @@ environments:
     - https://pypi.org/simple
     packages:
       linux-64:
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sracha-0.5.0-h54198d6_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/nextflow-26.04.6-h2a3209d_1.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/nf-test-0.9.5-h2a3209d_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
@@ -359,6 +363,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fd/7b/122376b1fd3c62c1ed9dc80c931ace4844b3c55407b6fb2d199377c9736f/pydantic-2.13.4-py3-none-any.whl
       linux-aarch64:
+      - conda: https://conda.anaconda.org/bioconda/linux-aarch64/sracha-0.5.0-h389c417_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/nextflow-26.04.6-h2a3209d_1.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/nf-test-0.9.5-h2a3209d_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
@@ -542,6 +547,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/noarch/nextflow-26.04.6-h2a3209d_1.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/nf-test-0.9.5-h2a3209d_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/sylph-tax-1.9.1-pyhdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/osx-arm64/sracha-0.5.0-h1a4e967_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/certifi-2026.7.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/charset-normalizer-3.5.1-pyhd8ed1ab_0.conda
@@ -671,6 +677,34 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fd/7b/122376b1fd3c62c1ed9dc80c931ace4844b3c55407b6fb2d199377c9736f/pydantic-2.13.4-py3-none-any.whl
 packages:
+- conda: https://conda.anaconda.org/bioconda/linux-64/sracha-0.5.0-h54198d6_0.conda
+  sha256: caabfd53f72dd500a866279703dbf724819d6a667f46b59f8ed642ff10842175
+  md5: 23417d39f3701e397ff7bcfd93227134
+  depends:
+  - libgcc >=14
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  purls: []
+  run_exports:
+    weak:
+    - sracha >=0.5.0,<0.6.0a0
+  size: 3061014
+  timestamp: 1785719882966
+- conda: https://conda.anaconda.org/bioconda/linux-aarch64/sracha-0.5.0-h389c417_0.conda
+  sha256: 582d2a97d3977f64cf499272cbcda26d83388478bd2626b1ac3c2d43fcd3d846
+  md5: 0179cdf699064f0dde1f9e08a45627e6
+  depends:
+  - libgcc >=14
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  purls: []
+  run_exports:
+    weak:
+    - sracha >=0.5.0,<0.6.0a0
+  size: 2987330
+  timestamp: 1785719661546
 - conda: https://conda.anaconda.org/bioconda/noarch/nextflow-26.04.6-h2a3209d_1.conda
   sha256: 452805a6a3cc3f4e28417d855c7c03001dce1b2557a7e8ae46971d3a8778f9af
   md5: 4fea597e1977b0221de342a3bfb2d971
@@ -715,6 +749,18 @@ packages:
     - sylph-tax >=1.9.1,<2.0a0
   size: 19573
   timestamp: 1782494901239
+- conda: https://conda.anaconda.org/bioconda/osx-arm64/sracha-0.5.0-h1a4e967_0.conda
+  sha256: af0bb6a50bf6940ead061f998992598982c2317c93aef9d00a40a5a86d457b15
+  md5: 3c48083993c15db8ed294596c2ca27a2
+  constrains:
+  - __osx >=11.0
+  license: MIT
+  purls: []
+  run_exports:
+    weak:
+    - sracha >=0.5.0,<0.6.0a0
+  size: 2686424
+  timestamp: 1785719457985
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
   sha256: 1dd3fffd892081df9726d7eb7e0dea6198962ba775bd88842135a4ddb4deb3c9

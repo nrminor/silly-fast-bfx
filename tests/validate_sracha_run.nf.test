@@ -1,0 +1,54 @@
+nextflow_process {
+    name "Validate Sracha run process"
+    script "../modules/local/validate_sracha_run/main.nf"
+    process "VALIDATE_SRACHA_RUN"
+    tag "modules"
+    tag "modules_local"
+
+    test("emits a resolvable SRA run unchanged") {
+        when {
+            process {
+                """input[0] = [[id: 'sra', platform: 'illumina'], 'SRR000001']"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.runs[0] == [[id: 'sra', platform: 'illumina'], 'SRR000001'] },
+            )
+        }
+    }
+
+    test("rejects an SRA run that Sracha cannot resolve") {
+        when {
+            process {
+                """input[0] = [[id: 'missing', platform: 'illumina'], 'SRR000000']"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.trace.tasks().size() == 3 },
+            )
+        }
+    }
+
+    test("stubs a resolvable SRA run") {
+        options '-stub-run'
+
+        when {
+            process {
+                """input[0] = [[id: 'stub', platform: 'ont'], 'DRR000001']"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.runs[0] == [[id: 'stub', platform: 'ont'], 'DRR000001'] },
+            )
+        }
+    }
+}

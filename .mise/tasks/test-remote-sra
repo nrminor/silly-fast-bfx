@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run the opt-in real SRA acquisition contract test"
+set -euo pipefail
+
+pixi run --environment dev nf-test test tests/remote/sracha.nf.test

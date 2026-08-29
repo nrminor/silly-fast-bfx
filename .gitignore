@@ -50,5 +50,3 @@
 # Tests
 !/tests/
 !/tests/**
-!/tests-remote/
-!/tests-remote/**

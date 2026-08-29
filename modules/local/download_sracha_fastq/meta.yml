@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "download_sracha_fastq"
+description: Download one schema-validated SRA run as one or two gzip-compressed FASTQs.
+keywords:
+  - sra
+  - sracha
+  - fastq
+tools:
+  - sracha:
+      description: Download sequencing reads from the Sequence Read Archive.
+      homepage: https://github.com/rnabioco/sracha-rs
+input:
+  - meta:
+      type: map
+      description: Sample metadata retained unchanged in the output tuple.
+  - accession:
+      type: string
+      description: Resolvable SRA run accession.
+output:
+  - reads:
+      type: file
+      description: Tuple of unchanged sample metadata and one single-read or two paired-read FASTQs.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

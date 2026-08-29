@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+write_fastq() {
+    printf '@fake\nAC\n+\nII\n' | gzip -n > "$1"
+}
+
+case "${1:-}" in
+    --version)
+        printf 'sracha 0.5.0\n'
+        ;;
+    info)
+        accession="${*: -1}"
+        if [[ ! "$accession" =~ ^SRR00000[123]$ ]]; then
+            printf 'unable to resolve %s\n' "$accession" >&2
+            exit 1
+        fi
+        printf 'run_accession\n%s\n' "$accession"
+        ;;
+    get)
+        accession="${*: -1}"
+        case "$accession" in
+            SRR000001)
+                write_fastq "${accession}.fastq.gz"
+                ;;
+            SRR000002)
+                write_fastq "${accession}_2.fastq.gz"
+                write_fastq "${accession}_1.fastq.gz"
+                ;;
+            SRR000003)
+                write_fastq "${accession}_2.fastq.gz"
+                write_fastq "${accession}_0.fastq.gz"
+                write_fastq "${accession}_1.fastq.gz"
+                ;;
+            *)
+                printf 'unexpected fake sracha accession: %s\n' "$accession" >&2
+                exit 2
+                ;;
+        esac
+        ;;
+    *)
+        printf 'unexpected fake sracha command: %s\n' "$*" >&2
+        exit 2
+        ;;
+esac

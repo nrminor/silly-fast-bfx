@@ -1,0 +1,42 @@
+nextflow_workflow {
+    name "Acquire real SRA FASTQ with Sracha"
+    script "../../subworkflows/local/gather_input_reads/main.nf"
+    workflow "GATHER_INPUT_READS"
+    config "tests/remote/nextflow.config"
+    tag "remote"
+    tag "sra"
+
+    test("downloads upstream single- and paired-read fixtures") {
+        setup {
+            def samplesheet = file("$outputDir/sra.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "single-sra,SRR38892122,ont,,",
+                "paired-sra,SRR28588231,illumina,,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = "$outputDir/sra.csv"
+                """
+            }
+        }
+
+        then {
+            def reads_by_id = workflow.out.reads.collectEntries { meta, reads ->
+                [(meta.id): [meta: meta, reads: reads.collect { file(it).name }]]
+            }
+            assertAll(
+                { assert workflow.success },
+                { assert reads_by_id.keySet() == ['single-sra', 'paired-sra'] as Set },
+                { assert reads_by_id['single-sra'].meta.single_end },
+                { assert reads_by_id['single-sra'].reads.size() == 1 },
+                { assert !reads_by_id['paired-sra'].meta.single_end },
+                { assert reads_by_id['paired-sra'].reads.size() == 2 },
+            )
+        }
+    }
+}

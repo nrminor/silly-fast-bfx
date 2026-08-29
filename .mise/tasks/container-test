@@ -5,6 +5,7 @@ set -euo pipefail
 docker run --rm nrminor/silly-fast-bfx:dev bash -euo pipefail -c '
   python -c "import Bio, polars"
   sylph-tax --help >/dev/null
+  sracha --help >/dev/null
   skope --version
   deacon --version
   sylph --version

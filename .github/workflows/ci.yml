@@ -64,6 +64,7 @@ jobs:
           docker run --rm nrminor/silly-fast-bfx:ci \
             bash -euo pipefail -c '
               python -c "import Bio, polars"
+              sracha --help > /dev/null
               skope --version
               deacon --version
               sylph --version
