@@ -27,7 +27,7 @@ jobs:
           cache: true
           bootstrap: true
           bootstrap_skip: repos
-          bootstrap_args: --yes
+          bootstrap_args: --yes --update
 
       - name: Validate release version
         id: release

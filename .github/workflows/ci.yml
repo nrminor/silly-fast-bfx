@@ -31,7 +31,7 @@ jobs:
           cache: true
           bootstrap: true
           bootstrap_skip: repos
-          bootstrap_args: --yes
+          bootstrap_args: --yes --update
 
       - name: Run checks
         run: mise run check
