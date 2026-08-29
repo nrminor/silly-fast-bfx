@@ -51,6 +51,64 @@ nextflow_pipeline {
         }
     }
 
+    test("search references accept explicit read-set selections") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                skip_skope = true
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        read_sets: [input: false, deacon_filtered: ["deacon-a"]],
+                    ]],
+                ]
+                skope = [
+                    references: [[
+                        id: "skope-a",
+                        query_index: [kind: "https", url: "https://example.org/reference.sk"],
+                        read_sets: [input: true, deacon_filtered: []],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.success
+        }
+    }
+
+    test("search references must select at least one read set") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                skip_sylph = true
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        read_sets: [input: false, deacon_filtered: []],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("read_sets")
+        }
+    }
+
     test("duplicate reference IDs are rejected by the parameter schema") {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
@@ -201,6 +259,7 @@ nextflow_pipeline {
                     references: [
                         [
                             id: "reference-k31",
+                            read_sets: [input: true, deacon_filtered: []],
                             fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                             build: [kmer_length: 31, compression: 2, min_spacing: 2],
                             sample_sketch: [kmer_length: 31, compression: 2],
@@ -208,6 +267,7 @@ nextflow_pipeline {
                         ],
                         [
                             id: "reference-k21",
+                            read_sets: [input: true, deacon_filtered: []],
                             fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                             build: [kmer_length: 21, compression: 2, min_spacing: 2],
                             sample_sketch: [kmer_length: 21, compression: 2],
@@ -245,6 +305,7 @@ nextflow_pipeline {
                 sylph = [
                     references: [[
                         id: "reference-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
@@ -280,6 +341,7 @@ nextflow_pipeline {
                 skope = [
                     references: [[
                         id: "reference-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
                         query: [abundance_thresholds: [1], confidence: true],
                     ]],
@@ -395,6 +457,7 @@ nextflow_pipeline {
                 sylph = [
                     references: [[
                         id: "sylph-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         database: [kind: "https", url: "https://fixtures.invalid/reference.syldb"],
                     ]],
                 ]
@@ -430,6 +493,7 @@ nextflow_pipeline {
                 sylph = [
                     references: [[
                         id: "sylph-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
@@ -439,6 +503,7 @@ nextflow_pipeline {
                 skope = [
                     references: [[
                         id: "skope-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         query_index: [kind: "https", url: "https://fixtures.invalid/reference.sk"],
                     ]],
                 ]
@@ -476,6 +541,7 @@ nextflow_pipeline {
                 sylph = [
                     references: [[
                         id: "reference-a",
+                        read_sets: [input: true, deacon_filtered: []],
                         database: [kind: "https", url: "https://example.org/reference.syldb"],
                         profile: [min_count_correct: 2.5, min_number_kmers: 50.5],
                     ]],

@@ -156,9 +156,9 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-a', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
-                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-b', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
-                        tuple([kmer_length: 31, compression: 1], [id: 'sylph-c', sample_sketch: [kmer_length: 31, compression: 1], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 1], [id: 'sylph-c', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 1], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, redundant_ani: 99]], database),
                     ]
                 }
                 input[3] = channel.empty()
@@ -219,7 +219,7 @@ nextflow_workflow {
         }
     }
 
-    test("withholds meaningful Deacon-filtered read sets from searches when post-Deacon screening is skipped") {
+    test("routes selected Deacon-filtered read sets to each search reference") {
         setup {
             run("BUILD_DEACON_INDEX") {
                 script "../modules/local/build_deacon_index/main.nf"
@@ -242,9 +242,119 @@ nextflow_workflow {
         }
 
         when {
-            params {
-                skip_post_deacon = true
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                ))
+                input[1] = BUILD_DEACON_INDEX.out.indexes.flatMap { build, index ->
+                    [
+                        tuple([id: 'deacon-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], index),
+                        tuple([id: 'deacon-b', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], index),
+                    ]
+                }
+                input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
+                    [
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-a1', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-a2', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'sylph-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                    ]
+                }
+                input[3] = channel.empty()
+                input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.flatMap { build, queryIndex ->
+                    [
+                        tuple([id: 'skope-a', read_sets: [input: false, deacon_filtered: ['deacon-a']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                    ]
+                }
+                """
             }
+        }
+
+        then {
+            def profiles = workflow.out.sylph.collect { meta, reference, profile, hasRows ->
+                "${meta.deacon_id}:${reference.id}".toString()
+            } as Set
+            def queries = workflow.out.skope.collect { meta, reference, result ->
+                "${meta.deacon_id}:${reference.id}".toString()
+            } as Set
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 3 },
+                { assert profiles == ['deacon-a:sylph-a1', 'deacon-a:sylph-a2', 'deacon-b:sylph-b'] as Set },
+                { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 2 },
+                { assert queries == ['deacon-a:skope-a', 'deacon-b:skope-b'] as Set },
+            )
+        }
+    }
+
+    test("warns when a search reference selects an unavailable Deacon read set") {
+        setup {
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+        }
+
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple(
+                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [file("\$baseDir/tests/data/sylph/reads.fastq")],
+                ))
+                input[1] = channel.empty()
+                input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
+                    tuple(
+                        [kmer_length: 31, compression: 2],
+                        [id: 'sylph-a', read_sets: [input: false, deacon_filtered: ['missing']], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]],
+                        database,
+                    )
+                }
+                input[3] = channel.empty()
+                input[4] = channel.empty()
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 0 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 0 },
+                { assert workflow.stdout.join('\n').contains('WARN: Search reference specifications select unavailable deacon:missing; no tasks will be created for that selection.') },
+            )
+        }
+    }
+
+    test("available input routes continue alongside unavailable selections") {
+        setup {
+            run("BUILD_DEACON_INDEX") {
+                script "../modules/local/build_deacon_index/main.nf"
+                process {
+                    """input[0] = [[observed_sha256: 'fixture', settings: [kmer_length: 31, window_size: 15]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                }
+            }
+        }
+
+        when {
             workflow {
                 """
                 input[0] = channel.of(tuple(
@@ -260,14 +370,14 @@ nextflow_workflow {
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
                     tuple(
                         [kmer_length: 31, compression: 2],
-                        [id: 'sylph-a', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]],
+                        [id: 'sylph-a', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]],
                         database,
                     )
                 }
                 input[3] = channel.empty()
                 input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
                     tuple(
-                        [id: 'skope-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]],
+                        [id: 'skope-a', read_sets: [input: true, deacon_filtered: ['missing']], query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]],
                         queryIndex,
                     )
                 }
@@ -286,6 +396,7 @@ nextflow_workflow {
                 { assert output[0].read_set == 'input' },
                 { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 1 },
                 { assert workflow.out.skope[0][0].read_set == 'input' },
+                { assert workflow.stdout.join('\n').contains('WARN: Search reference specifications select unavailable deacon:missing; no tasks will be created for that selection.') },
             )
         }
     }
@@ -310,9 +421,9 @@ nextflow_workflow {
                 input[1] = channel.empty()
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2], [id: 'configured', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
-                        tuple([kmer_length: 31, compression: 2], [id: 'raw-only', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
-                        tuple([kmer_length: 31, compression: 2], [id: 'empty', sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'configured', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'raw-only', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, redundant_ani: 99]], database),
+                        tuple([kmer_length: 31, compression: 2], [id: 'empty', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, redundant_ani: 99]], database),
                     ]
                 }
                 input[3] = channel.of(
@@ -376,8 +487,8 @@ nextflow_workflow {
                 input[3] = channel.empty()
                 input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.flatMap { build, queryIndex ->
                     [
-                        tuple([id: 'skope-a', query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
-                        tuple([id: 'skope-b', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: true, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: true, confidence: false, limit: null]], queryIndex),
                     ]
                 }
                 """

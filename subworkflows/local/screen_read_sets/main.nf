@@ -46,25 +46,44 @@ workflow SCREEN_READ_SETS {
             )
         }
 
-    ch_post_deacon_reads = ch_filtered_reads
-        .filter { meta, reads -> !params.skip_post_deacon }
+    ch_read_sets_by_source = input_reads
+        .map { meta, reads -> tuple('input', meta, reads) }
+        .mix(
+            ch_filtered_reads.map { meta, reads ->
+                tuple("deacon:${meta.deacon_id}", meta, reads)
+            }
+        )
 
-    ch_search_reads = input_reads.mix(ch_post_deacon_reads)
+    ch_sylph_routes = sylph_references.flatMap { sample_sketch, reference, database ->
+        def sources = (reference.read_sets.input ? ['input'] : []) +
+            reference.read_sets.deacon_filtered.collect { deacon_id -> "deacon:${deacon_id}" }
 
-    ch_sylph_sketch_settings = sylph_references
-        .map { sample_sketch, reference, database -> sample_sketch }
+        sources.collect { source -> tuple(source, sample_sketch, reference, database) }
+    }
+
+    ch_selected_sylph_reads = ch_read_sets_by_source
+        .combine(ch_sylph_routes, by: 0)
+
+    ch_sylph_sketch_jobs = ch_selected_sylph_reads
+        .map { source, meta, reads, sample_sketch, reference, database ->
+            tuple(sample_sketch, meta, reads)
+        }
         .unique()
-
-    ch_sylph_sketch_jobs = ch_search_reads
-        .combine(ch_sylph_sketch_settings)
-        .map { meta, reads, sample_sketch -> tuple(sample_sketch, meta, reads) }
 
     SKETCH_READS_WITH_SYLPH(ch_sylph_sketch_jobs)
 
-    ch_sylph_profile_jobs = SKETCH_READS_WITH_SYLPH.out.sketches
-        .combine(sylph_references, by: 0)
-        .map { sample_sketch, meta, sketch, reference, database ->
-            tuple(meta, reference, sketch, database)
+    ch_sylph_profile_routes = ch_selected_sylph_reads
+        .map { source, meta, reads, sample_sketch, reference, database ->
+            tuple([sample_sketch, meta], reference, database)
+        }
+
+    ch_sylph_sketches_by_route = SKETCH_READS_WITH_SYLPH.out.sketches
+        .map { sample_sketch, meta, sketch -> tuple([sample_sketch, meta], sketch) }
+
+    ch_sylph_profile_jobs = ch_sylph_sketches_by_route
+        .combine(ch_sylph_profile_routes, by: 0)
+        .map { route, sketch, reference, database ->
+            tuple(route[1], reference, sketch, database)
         }
 
     PROFILE_READS_WITH_SYLPH(ch_sylph_profile_jobs)
@@ -93,9 +112,37 @@ workflow SCREEN_READ_SETS {
 
     SUMMARIZE_SYLPH_TAXONOMY(ch_sylph_taxonomy_jobs)
 
-    ch_skope_jobs = ch_search_reads
-        .combine(skope_references)
-        .map { meta, reads, reference, query_index ->
+    ch_skope_routes = skope_references.flatMap { reference, query_index ->
+        def sources = (reference.read_sets.input ? ['input'] : []) +
+            reference.read_sets.deacon_filtered.collect { deacon_id -> "deacon:${deacon_id}" }
+
+        sources.collect { source -> tuple(source, reference, query_index) }
+    }
+
+    ch_requested_deacon_sources = ch_sylph_routes
+        .map { source, sample_sketch, reference, database -> source }
+        .mix(
+            ch_skope_routes.map { source, reference, query_index -> source }
+        )
+        .filter { source -> source != 'input' }
+        .unique()
+        .map { source -> tuple(source, true) }
+
+    ch_available_deacon_sources = deacon_references
+        .map { reference, index -> tuple("deacon:${reference.id}", true) }
+
+    ch_requested_deacon_sources
+        .join(ch_available_deacon_sources, by: 0, remainder: true)
+        .filter { source, requested, available ->
+            requested != null && available == null
+        }
+        .view { source, requested, available ->
+            "WARN: Search reference specifications select unavailable ${source}; no tasks will be created for that selection."
+        }
+
+    ch_skope_jobs = ch_read_sets_by_source
+        .combine(ch_skope_routes, by: 0)
+        .map { source, meta, reads, reference, query_index ->
             tuple(meta, reference, reads, query_index)
         }
 

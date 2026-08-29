@@ -6,8 +6,6 @@ results: results
 skip_deacon: true
 skip_sylph: true
 skip_skope: true
-skip_post_deacon: false
-
 deacon:
   references:
     - id: respiratory
@@ -24,6 +22,9 @@ deacon:
 sylph:
   references:
     - id: gtdb-r232
+      read_sets:
+        input: true
+        deacon_filtered: [respiratory]
       database:
         kind: https
         url: https://example.org/gtdb-r232.syldb
@@ -40,6 +41,9 @@ sylph:
 skope:
   references:
     - id: respiratory
+      read_sets:
+        input: true
+        deacon_filtered: [respiratory]
       targets:
         kind: local
         path: /refs/respiratory.fasta

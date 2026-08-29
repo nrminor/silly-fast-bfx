@@ -33,11 +33,6 @@
       "default": false,
       "description": "Skip every Skope reference specification."
     },
-    "skip_post_deacon": {
-      "type": "boolean",
-      "default": false,
-      "description": "Do not search Deacon-filtered read sets with Sylph or Skope."
-    },
     "deacon": {
       "$ref": "#/$defs/deacon_configuration",
       "default": {}
@@ -93,6 +88,35 @@
     "reference_id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "read_sets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "deacon_filtered"],
+      "properties": {
+        "input": {
+          "type": "boolean",
+          "description": "Search the input read set with this reference specification."
+        },
+        "deacon_filtered": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/reference_id"},
+          "description": "Deacon reference IDs whose filtered read sets are searched with this reference specification."
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "input": {"const": true}
+          }
+        },
+        {
+          "properties": {
+            "deacon_filtered": {"minItems": 1}
+          }
+        }
+      ]
     },
     "sha256": {
       "type": "string",
@@ -236,7 +260,7 @@
     "sylph_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": ["id", "read_sets"],
       "properties": {
         "id": {"$ref": "#/$defs/reference_id"},
         "fastas": {
@@ -245,6 +269,7 @@
           "items": {"$ref": "#/$defs/artifact_source"}
         },
         "database": {"$ref": "#/$defs/artifact_source"},
+        "read_sets": {"$ref": "#/$defs/read_sets"},
         "build": {"$ref": "#/$defs/sylph_build"},
         "sample_sketch": {"$ref": "#/$defs/sylph_sample_sketch"},
         "profile": {"$ref": "#/$defs/sylph_profile"},
@@ -311,11 +336,12 @@
     "skope_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": ["id", "read_sets"],
       "properties": {
         "id": {"$ref": "#/$defs/reference_id"},
         "targets": {"$ref": "#/$defs/artifact_source"},
         "query_index": {"$ref": "#/$defs/artifact_source"},
+        "read_sets": {"$ref": "#/$defs/read_sets"},
         "build": {"$ref": "#/$defs/skope_build"},
         "query": {"$ref": "#/$defs/skope_query"}
       },

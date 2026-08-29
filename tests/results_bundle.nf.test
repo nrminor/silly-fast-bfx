@@ -35,6 +35,7 @@ nextflow_pipeline {
                 sylph = [
                     references: [[
                         id: "sylph-a",
+                        read_sets: [input: true, deacon_filtered: ["deacon-a"]],
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
@@ -45,6 +46,7 @@ nextflow_pipeline {
                 skope = [
                     references: [[
                         id: "skope-a",
+                        read_sets: [input: true, deacon_filtered: ["deacon-a"]],
                         targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
                         query: [abundance_thresholds: [1]],
                     ]],
