@@ -1,6 +1,5 @@
 process ENCODE_READS_WITH_BQTOOLS {
     tag "${meta.id}"
-    label 'process_low'
 
     input:
     tuple val(meta), path(reads, stageAs: 'reads??/*', arity: '1..2')

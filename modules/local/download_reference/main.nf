@@ -1,6 +1,5 @@
 process DOWNLOAD_REFERENCE {
     tag "${logical_basename}"
-    label 'process_low'
 
     input:
     tuple val(location), val(logical_basename)

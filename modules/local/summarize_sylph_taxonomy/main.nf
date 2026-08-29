@@ -1,6 +1,5 @@
 process SUMMARIZE_SYLPH_TAXONOMY {
     tag "${meta.id}:${reference.id}"
-    label 'process_low'
 
     input:
     tuple val(meta),

@@ -1,6 +1,5 @@
 process RECORD_REFERENCE_CHECKSUMS {
     tag "${tool}:${reference.id}"
-    label 'process_low'
 
     input:
     tuple val(tool), val(reference), val(sources)

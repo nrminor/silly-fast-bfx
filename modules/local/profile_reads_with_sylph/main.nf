@@ -1,6 +1,5 @@
 process PROFILE_READS_WITH_SYLPH {
     tag "${meta.id}:${reference.id}"
-    label 'process_high'
 
     input:
     tuple val(meta), val(reference), path(sketch), path(database)

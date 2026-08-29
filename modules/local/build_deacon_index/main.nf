@@ -1,6 +1,5 @@
 process BUILD_DEACON_INDEX {
     tag "k${build.settings.kmer_length}/w${build.settings.window_size}"
-    label 'process_low'
 
     input:
     tuple val(build), path(fasta)

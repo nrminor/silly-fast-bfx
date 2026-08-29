@@ -1,6 +1,5 @@
 process VALIDATE_SRACHA_RUN {
     tag "${meta.id}:${accession}"
-    label 'process_low'
 
     input:
     tuple val(meta), val(accession)

@@ -1,6 +1,5 @@
 process COLLATE_FASTQ {
     tag "${meta.id}"
-    label 'process_low'
 
     input:
     tuple val(meta), path(reads, stageAs: 'reads??/*'), val(r1_count), val(r1_sources)

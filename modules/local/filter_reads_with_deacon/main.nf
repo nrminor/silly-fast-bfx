@@ -1,6 +1,5 @@
 process FILTER_READS_WITH_DEACON {
     tag "${meta.id}:${reference.id}"
-    label 'process_low'
 
     input:
     tuple val(meta), val(reference), path(cbq), path(index)

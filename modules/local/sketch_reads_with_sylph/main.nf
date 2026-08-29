@@ -1,6 +1,5 @@
 process SKETCH_READS_WITH_SYLPH {
     tag "${meta.id}:${meta.read_set}"
-    label 'process_medium'
 
     input:
     tuple val(sample_sketch), val(meta), path(reads, stageAs: 'reads??/*', arity: '1..2')

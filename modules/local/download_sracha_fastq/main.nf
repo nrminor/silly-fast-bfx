@@ -1,6 +1,5 @@
 process DOWNLOAD_SRACHA_FASTQ {
     tag "${meta.id}:${accession}"
-    label 'process_medium'
 
     input:
     tuple val(meta), val(accession)

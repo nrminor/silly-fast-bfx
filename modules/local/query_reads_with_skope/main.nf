@@ -1,6 +1,5 @@
 process QUERY_READS_WITH_SKOPE {
     tag "${meta.id}:${reference.id}"
-    label 'process_high'
 
     input:
     tuple val(meta),

@@ -1,5 +1,4 @@
 process PRESERVE_SAMPLESHEET {
-    label 'process_low'
 
     input:
     path samplesheet, stageAs: 'submitted.csv'

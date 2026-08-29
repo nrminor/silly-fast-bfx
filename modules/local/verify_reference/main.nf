@@ -1,6 +1,5 @@
 process VERIFY_REFERENCE {
     tag "${tool}:${reference.id}:${role}"
-    label 'process_low'
 
     input:
     tuple val(tool), val(reference), val(role), val(order), val(source), path(artifact)

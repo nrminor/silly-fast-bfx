@@ -1,6 +1,5 @@
 process BUILD_SKOPE_QUERY_INDEX {
     tag "k${build.settings.kmer_length}/s${build.settings.smer_length}"
-    label 'process_high'
 
     input:
     tuple val(build), path(targets)

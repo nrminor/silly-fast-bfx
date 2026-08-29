@@ -1,6 +1,5 @@
 process BUILD_SYLPH_DATABASE {
     tag "k${build.settings.kmer_length}/c${build.settings.compression}"
-    label 'process_high'
 
     input:
     tuple val(build), path(fastas)
