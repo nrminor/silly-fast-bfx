@@ -39,13 +39,16 @@
       "description": "Do not search Deacon-filtered read sets with Sylph or Skope."
     },
     "deacon": {
-      "$ref": "#/$defs/deacon_configuration"
+      "$ref": "#/$defs/deacon_configuration",
+      "default": {}
     },
     "sylph": {
-      "$ref": "#/$defs/sylph_configuration"
+      "$ref": "#/$defs/sylph_configuration",
+      "default": {}
     },
     "skope": {
-      "$ref": "#/$defs/skope_configuration"
+      "$ref": "#/$defs/skope_configuration",
+      "default": {}
     },
     "monoimage": {
       "type": "string",
