@@ -17,12 +17,15 @@ process SKETCH_READS_WITH_SYLPH {
     def read_args = meta.single_end
         ? "--reads ${reads[0]}"
         : "--first-pairs ${reads[0]} --second-pairs ${reads[1]}"
+    def no_dedup_arg = sample_sketch.no_dedup ? '--no-dedup' : ''
     """
     sylph sketch \
         ${read_args} \
         --sample-names ${sample_name} \
         -k ${sample_sketch.kmer_length} \
         -c ${sample_sketch.compression} \
+        ${no_dedup_arg} \
+        --fpr ${sample_sketch.fpr} \
         -t ${task.cpus}
 
     SYLPH_VERSION="\$(sylph --version)"

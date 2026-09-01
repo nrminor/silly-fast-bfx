@@ -31,27 +31,43 @@ workflow PREPARE_REFERENCES {
     }
 
     normalized_sylph_references = sylph_references.collect { reference ->
-        def normalized = reference + [
-            sample_sketch: [
+        def build = reference.fastas
+            ? [
                 kmer_length: 31,
                 compression: 200,
-            ] + (reference.sample_sketch ?: [:]),
+                individual_records: false,
+                min_spacing: 30,
+            ] + (reference.build ?: [:])
+            : null
+        def sample_sketch = [
+            kmer_length: build?.kmer_length ?: 31,
+            compression: build?.compression ?: 200,
+            no_dedup: false,
+            fpr: 0.0001,
+        ] + (reference.sample_sketch ?: [:])
+
+        if (build && sample_sketch.kmer_length != build.kmer_length) {
+            error "Sylph reference '${reference.id}' sample_sketch.kmer_length must match build.kmer_length."
+        }
+        if (build && sample_sketch.compression > build.compression) {
+            error "Sylph reference '${reference.id}' sample_sketch.compression cannot exceed build.compression."
+        }
+
+        def normalized = reference + [
+            sample_sketch: sample_sketch,
             profile: [
                 minimum_ani: 95,
                 min_count_correct: 3,
                 min_number_kmers: 50,
-                redundant_ani: 99,
+                estimate_unknown: false,
+                estimate_read_counts: false,
+                read_seq_id: null,
             ] + (reference.profile ?: [:]),
         ]
 
         reference.fastas
             ? normalized + [
-                build: [
-                    kmer_length: 31,
-                    compression: 200,
-                    individual_records: false,
-                    min_spacing: 30,
-                ] + (reference.build ?: [:]),
+                build: build,
             ]
             : normalized
     }

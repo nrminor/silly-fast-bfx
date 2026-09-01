@@ -320,13 +320,25 @@
           "type": "integer",
           "enum": [21, 31],
           "default": 31,
-          "description": "K-mer length for sample read sketches; it must match the queried Sylph database."
+          "description": "K-mer length for sample read sketches; it must match the queried Sylph database and is derived from a source-built database when omitted."
         },
         "compression": {
           "type": "integer",
           "minimum": 1,
           "default": 200,
-          "description": "Sample-sketch subsampling rate; smaller values retain more k-mers and increase sensitivity, sketch size, and work."
+          "description": "Sample-sketch subsampling rate; smaller values retain more k-mers and increase sensitivity, sketch size, and work. It cannot exceed the database rate and is derived from a source-built database when omitted."
+        },
+        "no_dedup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable read deduplication while sketching to reduce memory use; Sylph does not recommend this for Illumina reads."
+        },
+        "fpr": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "default": 0.0001,
+          "description": "False-positive rate for approximate paired-read deduplication; zero uses exact deduplication. This setting has no effect on single-end reads or when deduplication is disabled."
         }
       }
     },
@@ -353,12 +365,22 @@
           "default": 50,
           "description": "Exclude reference genomes represented by fewer than this many sampled k-mers."
         },
-        "redundant_ani": {
-          "type": "number",
-          "minimum": 0,
+        "estimate_unknown": {
+          "type": "boolean",
+          "default": false,
+          "description": "Estimate true coverage and scale sequence abundance by the estimated unknown-sequence percentage; this changes the Eff_cov column to True_cov."
+        },
+        "estimate_read_counts": {
+          "type": "boolean",
+          "default": false,
+          "description": "Very roughly estimate read counts in the Sequence_abundance column instead of relative abundance; enabling this also enables unknown-sequence estimation and may have caveats for long reads and complex environments."
+        },
+        "read_seq_id": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0,
           "maximum": 100,
-          "default": 99,
-          "description": "Rough ANI percentage threshold at which Sylph removes redundant reference genomes during profiling."
+          "default": null,
+          "description": "Read sequence identity percentage used only for unknown-sequence estimation; null lets Sylph detect it automatically."
         }
       }
     },

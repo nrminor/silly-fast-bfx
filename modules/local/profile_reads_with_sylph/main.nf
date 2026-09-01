@@ -15,6 +15,9 @@ process PROFILE_READS_WITH_SYLPH {
     def read_set_name = meta.read_set == 'input' ? 'input' : "deacon-${meta.deacon_id}"
     def prefix = task.ext.prefix ?: "${meta.id}__${read_set_name}"
     def profile = "${prefix}.profile.tsv"
+    def estimate_unknown_arg = reference.profile.estimate_unknown ? '--estimate-unknown' : ''
+    def estimate_read_counts_arg = reference.profile.estimate_read_counts ? '--estimate-read-counts' : ''
+    def read_seq_id_arg = reference.profile.read_seq_id == null ? '' : "--read-seq-id ${reference.profile.read_seq_id}"
     """
     sylph profile \
         ${database} \
@@ -22,7 +25,9 @@ process PROFILE_READS_WITH_SYLPH {
         --minimum-ani ${reference.profile.minimum_ani} \
         --min-count-correct ${reference.profile.min_count_correct} \
         --min-number-kmers ${reference.profile.min_number_kmers} \
-        --redundancy-threshold ${reference.profile.redundant_ani} \
+        ${estimate_unknown_arg} \
+        ${estimate_read_counts_arg} \
+        ${read_seq_id_arg} \
         -t ${task.cpus} \
         --output-file ${profile}
 
@@ -43,8 +48,11 @@ process PROFILE_READS_WITH_SYLPH {
     def read_set_name = meta.read_set == 'input' ? 'input' : "deacon-${meta.deacon_id}"
     def prefix = task.ext.prefix ?: "${meta.id}__${read_set_name}"
     def profile = "${prefix}.profile.tsv"
+    def coverage_column = reference.profile.estimate_unknown || reference.profile.estimate_read_counts
+        ? 'True_cov'
+        : 'Eff_cov'
     """
-    printf '%s\\n' 'Sample_file\tGenome_file\tTaxonomic_abundance\tSequence_abundance\tAdjusted_ANI\tEff_cov\tANI_5-95_percentile\tEff_lambda\tLambda_5-95_percentile\tMedian_cov\tMean_cov_geq1\tContainment_ind\tNaive_ANI\tkmers_reassigned\tContig_name' > ${profile}
+    printf '%s\\n' 'Sample_file\tGenome_file\tTaxonomic_abundance\tSequence_abundance\tAdjusted_ANI\t${coverage_column}\tANI_5-95_percentile\tEff_lambda\tLambda_5-95_percentile\tMedian_cov\tMean_cov_geq1\tContainment_ind\tNaive_ANI\tkmers_reassigned\tContig_name' > ${profile}
     export HAS_PROFILE_ROWS=false
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

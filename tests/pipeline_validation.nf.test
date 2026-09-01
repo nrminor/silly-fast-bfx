@@ -588,7 +588,14 @@ nextflow_pipeline {
                         id: "reference-a",
                         read_sets: [input: true, deacon_filtered: []],
                         database: [kind: "https", url: "https://example.org/reference.syldb"],
-                        profile: [min_count_correct: 2.5, min_number_kmers: 50.5],
+                        sample_sketch: [no_dedup: true, fpr: 0.0],
+                        profile: [
+                            min_count_correct: 2.5,
+                            min_number_kmers: 50.5,
+                            estimate_unknown: true,
+                            estimate_read_counts: true,
+                            read_seq_id: 99.5,
+                        ],
                     ]],
                 ]
                 skope = [references: []]
@@ -597,6 +604,70 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
+        }
+    }
+
+    test("hidden Sylph profiling controls are rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                deacon = [:]
+                sylph = [
+                    references: [[
+                        id: "reference-a",
+                        read_sets: [input: true, deacon_filtered: []],
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        profile: [redundant_ani: 99],
+                    ]],
+                ]
+                skope = [references: []]
+            }
+        }
+
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("zero read sequence identity is rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                deacon = [:]
+                sylph = [
+                    references: [[
+                        id: "reference-a",
+                        read_sets: [input: true, deacon_filtered: []],
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        profile: [read_seq_id: 0],
+                    ]],
+                ]
+                skope = [references: []]
+            }
+        }
+
+        then {
+            assert workflow.failed
         }
     }
 
