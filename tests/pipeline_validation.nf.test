@@ -51,6 +51,70 @@ nextflow_pipeline {
         }
     }
 
+    test("summarizes configured searches without serializing tool parameters") {
+        options '-stub-run'
+
+        setup {
+            def samplesheet = file("$outputDir/search-summary.csv")
+            def reads = file("$outputDir/reads.fastq.gz")
+            samplesheet.parentFile.mkdirs()
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,ont,$reads,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/search-summary.csv"
+                deacon = [references: [[
+                    id: "deacon-a",
+                    index: [kind: "local", path: "${projectDir}/tests/data/deacon/reference.k31w15.idx"],
+                    filter: [abs_threshold: 1, rel_threshold: 0.0, complexity_threshold: 0.5],
+                ]]]
+                sylph = [references: [[
+                    id: "sylph-a",
+                    read_sets: [input: true, deacon_filtered: []],
+                    database: [kind: "local", path: "${projectDir}/tests/data/sylph/prebuilt.syldb"],
+                    sample_sketch: [compression: 50],
+                    profile: [minimum_ani: 90, min_count_correct: 3, min_number_kmers: 1],
+                ]]]
+                skope = [references: [[
+                    id: "skope-a",
+                    read_sets: [input: true, deacon_filtered: []],
+                    targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                    query: [abundance_thresholds: [2, 3, 5], confidence: true],
+                ]]]
+            }
+        }
+
+        then {
+            def output = file("$metaDir/nextflow.log").text
+            assertAll(
+                { assert workflow.success },
+                { assert output.contains('Input and output') },
+                { assert output.contains('samplesheet:') },
+                { assert output.contains('results:') },
+                { assert output.contains('Searches') },
+                { assert output.contains('minimum index hits: 1') },
+                { assert output.contains('minimum hit proportion: 0.0') },
+                { assert output.contains('minimum minimizer complexity: 0.5') },
+                { assert output.contains('sample sketch compression: 50') },
+                { assert output.contains('minimum ANI: 90') },
+                { assert output.contains('minimum k-mer multiplicity: 3') },
+                { assert output.contains('minimum sampled k-mers: 1') },
+                { assert output.contains('syncmer abundance thresholds: 2, 3, 5') },
+                { assert output.contains('confidence intervals: enabled') },
+                { assert output.contains('nrminor/silly-fast-bfx:dev') },
+                { assert !output.contains('[references:[[') },
+                { assert !output.contains('Other parameters') },
+            )
+        }
+    }
+
     test("search references accept explicit read-set selections") {
         setup {
             def samplesheet = file("$outputDir/exact.csv")

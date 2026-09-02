@@ -6,6 +6,17 @@ include { PREPARE_REFERENCES    } from './subworkflows/local/prepare_references'
 include { SCREEN_READ_SETS      } from './subworkflows/local/screen_read_sets'
 include { validate              } from 'plugin/nf-schema'
 
+def describeReadSets(read_sets) {
+    ((read_sets?.input ? ['input'] : []) +
+        (read_sets?.deacon_filtered ?: []).collect { deacon_id -> "deacon:${deacon_id}" })
+        .join(', ')
+}
+
+def formatReference(reference, fields) {
+    def configured_fields = fields.findAll { _label, value -> value != null }
+    ["    ${reference.id}"] + configured_fields.collect { label, value -> "      ${label}: ${value}" }
+}
+
 workflow {
     main:
     if (params.version) {
@@ -15,6 +26,62 @@ workflow {
 
     parameters_schema = "${projectDir}/nextflow_schema.json"
 
+    deacon_references = params.get('deacon')?.references ?: []
+    sylph_references = params.get('sylph')?.references ?: []
+    skope_references = params.get('skope')?.references ?: []
+
+    deacon_enabled = !params.skip_deacon && !deacon_references.isEmpty()
+    sylph_enabled = !params.skip_sylph && !sylph_references.isEmpty()
+    skope_enabled = !params.skip_skope && !skope_references.isEmpty()
+
+    active_deacon_references = deacon_references.findAll { deacon_enabled }
+    active_sylph_references = sylph_references.findAll { sylph_enabled }
+    active_skope_references = skope_references.findAll { skope_enabled }
+
+    deacon_summary = active_deacon_references.collect { reference ->
+        formatReference(reference, [
+            'minimum index hits': reference.filter?.abs_threshold,
+            'minimum hit proportion': reference.filter?.rel_threshold,
+            'minimum minimizer complexity': reference.filter?.complexity_threshold,
+            'discard matching reads': reference.filter?.deplete ? true : null,
+        ])
+    }.flatten()
+
+    sylph_summary = active_sylph_references.collect { reference ->
+        formatReference(reference, [
+            'read sets': describeReadSets(reference.read_sets),
+            'sample sketch compression': reference.sample_sketch?.compression,
+            'minimum ANI': reference.profile?.minimum_ani,
+            'minimum k-mer multiplicity': reference.profile?.min_count_correct,
+            'minimum sampled k-mers': reference.profile?.min_number_kmers,
+        ])
+    }.flatten()
+
+    skope_summary = active_skope_references.collect { reference ->
+        formatReference(reference, [
+            'read sets': describeReadSets(reference.read_sets),
+            'syncmer abundance thresholds': reference.query?.abundance_thresholds?.join(', '),
+            'confidence intervals': reference.query?.confidence ? 'enabled' : null,
+            'unique target syncmers': reference.query?.discriminatory ? 'enabled' : null,
+            'sample base limit': reference.query?.limit,
+        ])
+    }.flatten()
+
+    search_summary = [
+        active_deacon_references ? ['', '  deacon'] + deacon_summary : [],
+        active_sylph_references ? ['', '  sylph'] + sylph_summary : [],
+        active_skope_references ? ['', '  skope'] + skope_summary : [],
+    ].flatten()
+
+    launch_summary = ([
+        'Searches',
+    ] + (search_summary ?: ['', '  none enabled']) + [
+        '',
+        'Input and output',
+        "  samplesheet: ${params.input}",
+        "  results: ${params.results}",
+    ]).join('\n')
+
     UTILS_NFSCHEMA_PLUGIN(
         workflow,
         false,
@@ -22,7 +89,7 @@ workflow {
         params.help,
         params.help_full,
         params.show_hidden,
-        '',
+        launch_summary,
         '',
         'nextflow run nrminor/silly-fast-bfx --help',
         false,
@@ -32,21 +99,9 @@ workflow {
         validate(params, parameters_schema)
     }
 
-    deacon_references = params.get('deacon')?.references ?: []
-    sylph_references = params.get('sylph')?.references ?: []
-    skope_references = params.get('skope')?.references ?: []
-
-    deacon_enabled = !params.skip_deacon && !deacon_references.isEmpty()
-    sylph_enabled = !params.skip_sylph && !sylph_references.isEmpty()
-    skope_enabled = !params.skip_skope && !skope_references.isEmpty()
-
     ch_versions = channel.topic('versions')
 
     GATHER_INPUT_READS(params.input)
-
-    active_deacon_references = deacon_references.findAll { deacon_enabled }
-    active_sylph_references = sylph_references.findAll { sylph_enabled }
-    active_skope_references = skope_references.findAll { skope_enabled }
 
     PREPARE_REFERENCES(
         active_deacon_references,
