@@ -42,7 +42,7 @@ workflow SCREEN_READ_SETS {
                     read_set: 'deacon_filtered',
                     deacon_id: reference.id,
                 ],
-                reads,
+                [reads],
             )
         }
 

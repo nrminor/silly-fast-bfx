@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
 name: "encode_reads_with_bqtools"
-description: Losslessly encode one single- or paired-end read set as CBQ.
+description: Losslessly encode one read set from one or more FASTQs as CBQ.
 keywords:
   - bqtools
   - cbq
@@ -15,7 +15,7 @@ input:
       description: Read-set metadata, retained unchanged in the output tuple.
   - reads:
       type: file
-      description: One single-end FASTQ or two paired-end FASTQ files.
+      description: One or more ordered FASTQ read encodings.
 output:
   - encodings:
       type: file

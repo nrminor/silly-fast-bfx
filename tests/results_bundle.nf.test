@@ -8,9 +8,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/samplesheet.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 

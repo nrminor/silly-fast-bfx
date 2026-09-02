@@ -5,7 +5,7 @@ process DOWNLOAD_SRACHA_FASTQ {
     tuple val(meta), val(accession)
 
     output:
-    tuple val(meta), path("${accession}*.fastq.gz", arity: '1..2'), emit: reads
+    tuple val(meta), path("${accession}*.fastq.gz", arity: '1..*'), emit: reads
     path 'versions.yml', topic: versions
 
     when:

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
 name: "download_sracha_fastq"
-description: Download one schema-validated SRA run as one or two gzip-compressed FASTQs.
+description: Download one schema-validated SRA run as one or more gzip-compressed FASTQs.
 keywords:
   - sra
   - sracha
@@ -19,7 +19,7 @@ input:
 output:
   - reads:
       type: file
-      description: Tuple of unchanged sample metadata and one single-read or two paired-read FASTQs.
+      description: Tuple of unchanged sample metadata and one or more ordered gzip FASTQs.
   - versions:
       type: file
       description: Software versions topic.

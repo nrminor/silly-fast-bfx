@@ -5,7 +5,7 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("emits one FASTQ for a single-read run") {
+    test("emits one FASTQ for a run") {
         when {
             process {
                 """input[0] = [[id: 'single', platform: 'ont'], 'SRR000001']"""
@@ -22,7 +22,7 @@ nextflow_process {
         }
     }
 
-    test("emits two FASTQs for a paired-read run") {
+    test("emits two FASTQs for a run") {
         when {
             process {
                 """input[0] = [[id: 'paired', platform: 'illumina'], 'SRR000002']"""
@@ -39,7 +39,7 @@ nextflow_process {
         }
     }
 
-    test("rejects three FASTQs from one run") {
+    test("emits every FASTQ from a run") {
         when {
             process {
                 """input[0] = [[id: 'orphan', platform: 'illumina'], 'SRR000003']"""
@@ -47,7 +47,12 @@ nextflow_process {
         }
 
         then {
-            assert process.failed
+            def output = process.out.reads[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'orphan', platform: 'illumina'] },
+                { assert output[1].collect { file(it).name } == ['SRR000003_0.fastq.gz', 'SRR000003_1.fastq.gz', 'SRR000003_2.fastq.gz'] },
+            )
         }
     }
 

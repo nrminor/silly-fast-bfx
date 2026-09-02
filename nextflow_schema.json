@@ -332,13 +332,6 @@
           "type": "boolean",
           "default": false,
           "description": "Disable read deduplication while sketching to reduce memory use; Sylph does not recommend this for Illumina reads."
-        },
-        "fpr": {
-          "type": "number",
-          "minimum": 0,
-          "exclusiveMaximum": 1,
-          "default": 0.0001,
-          "description": "False-positive rate for approximate paired-read deduplication; zero uses exact deduplication. This setting has no effect on single-end reads or when deduplication is disabled."
         }
       }
     },

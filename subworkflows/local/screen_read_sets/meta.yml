@@ -15,7 +15,7 @@ components:
 input:
   - input_reads:
       type: file
-      description: Metadata and one or two FASTQ paths for each input read set.
+      description: Metadata and one or more ordered FASTQ paths for each input read set.
   - deacon_references:
       type: file
       description: Normalized Deacon reference specifications and prepared indexes.

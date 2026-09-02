@@ -11,11 +11,11 @@ nextflow_workflow {
                 """
                 input[0] = channel.of(
                     tuple(
-                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'sample-a', platform: 'ont', read_set: 'input'],
                         [file("\$baseDir/tests/data/deacon/matching.fastq")],
                     ),
                     tuple(
-                        [id: 'sample-b', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'sample-b', platform: 'ont', read_set: 'input'],
                         [file("\$baseDir/tests/data/deacon/nonmatching.fastq")],
                     ),
                 )
@@ -50,18 +50,18 @@ nextflow_workflow {
                 { assert official.findAll { key, output -> key != 'sample-a:meaningful' }.values().every { output -> output.has_reads == 'false' } },
                 { assert official.values().every { output -> output.meta.read_set == 'input' && !output.meta.containsKey('deacon_id') } },
                 { assert workflow.out.filtered_reads.size() == 1 },
-                { assert filtered[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'meaningful'] },
+                { assert filtered[0] == [id: 'sample-a', platform: 'ont', read_set: 'deacon_filtered', deacon_id: 'meaningful'] },
                 { assert filtered[1].collect { file(it).name } == ['sample-a.fastq.gz'] },
             )
         }
     }
 
-    test("preserves paired mates with colliding source basenames") {
+    test("streams files with colliding source basenames into one filtered FASTQ") {
         when {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'],
+                    [id: 'paired', platform: 'illumina', read_set: 'input'],
                     [
                         file("\$baseDir/tests/data/deacon/mates/r1/reads.fastq"),
                         file("\$baseDir/tests/data/deacon/mates/r2/reads.fastq"),
@@ -80,15 +80,13 @@ nextflow_workflow {
 
         then {
             def output = workflow.out.filtered_reads[0]
-            def reads = output[1].collect { path ->
-                new java.util.zip.GZIPInputStream(file(path).newInputStream()).text
-            }
+            def reads = new java.util.zip.GZIPInputStream(file(output[1][0]).newInputStream()).text
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
-                { assert reads[0] == file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").text },
-                { assert reads[1] == file("${projectDir}/tests/data/deacon/mates/r2/reads.fastq").text },
+                { assert output[1].collect { file(it).name } == ['paired.fastq.gz'] },
+                { assert reads == file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").text },
             )
         }
     }
@@ -98,7 +96,7 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/deacon/matching.fastq")],
                 ))
                 input[1] = channel.empty()
@@ -140,11 +138,11 @@ nextflow_workflow {
                 """
                 input[0] = channel.of(
                     tuple(
-                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'sample-a', platform: 'ont', read_set: 'input'],
                         [file("\$baseDir/tests/data/sylph/reads.fastq")],
                     ),
                     tuple(
-                        [id: 'sample-b', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'sample-b', platform: 'ont', read_set: 'input'],
                         [file("\$baseDir/tests/data/sylph/reads.fastq")],
                     ),
                 )
@@ -156,9 +154,9 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sylph-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sylph-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 1, no_dedup: false, fpr: 0.0001], [id: 'sylph-c', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 1, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 1, no_dedup: false], [id: 'sylph-c', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 1, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.empty()
@@ -245,7 +243,7 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/sylph/reads.fastq")],
                 ))
                 input[1] = BUILD_DEACON_INDEX.out.indexes.flatMap { build, index ->
@@ -256,9 +254,9 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sylph-a1', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sylph-a2', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sylph-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a1', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a2', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.empty()
@@ -305,14 +303,14 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/sylph/reads.fastq")],
                 ))
                 input[1] = channel.empty()
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
                     tuple(
-                        [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001],
-                        [id: 'sylph-a', read_sets: [input: false, deacon_filtered: ['missing']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                        [kmer_length: 31, compression: 2, no_dedup: false],
+                        [id: 'sylph-a', read_sets: [input: false, deacon_filtered: ['missing']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
                         database,
                     )
                 }
@@ -358,7 +356,7 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/sylph/reads.fastq")],
                 ))
                 input[1] = BUILD_DEACON_INDEX.out.indexes.map { build, index ->
@@ -369,8 +367,8 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
                     tuple(
-                        [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001],
-                        [id: 'sylph-a', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                        [kmer_length: 31, compression: 2, no_dedup: false],
+                        [id: 'sylph-a', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
                         database,
                     )
                 }
@@ -415,15 +413,15 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/sylph/reads.fastq")],
                 ))
                 input[1] = channel.empty()
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'configured', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'raw-only', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'empty', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'configured', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'raw-only', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'empty', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.of(
@@ -474,7 +472,7 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple(
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [file("\$baseDir/tests/data/sylph/reads.fastq")],
                 ))
                 input[1] = BUILD_DEACON_INDEX.out.indexes.map { build, index ->

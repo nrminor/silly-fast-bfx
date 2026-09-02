@@ -10,7 +10,7 @@ nextflow_process {
             process {
                 """
                 input[0] = [
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'input'],
                     [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a', 'taxonomy-b']]],
                     file("\$baseDir/tests/data/sylph/meaningful.profile.tsv"),
                     [
@@ -29,7 +29,7 @@ nextflow_process {
             def module = file("${projectDir}/modules/local/summarize_sylph_taxonomy/main.nf").text
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', read_set: 'input'] },
                 { assert output[1] == [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a', 'taxonomy-b']]] },
                 { assert profile.name == 'sample-a__input.sylphmpa' },
                 { assert text.contains('d__Bacteria|p__Bacillota|t__matched.fa') },
@@ -45,7 +45,7 @@ nextflow_process {
             process {
                 """
                 input[0] = [
-                    [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'host'],
+                    [id: 'sample-a', platform: 'ont', read_set: 'deacon_filtered', deacon_id: 'host'],
                     [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a']]],
                     file("\$baseDir/tests/data/sylph/meaningful.profile.tsv"),
                     [file("\$baseDir/tests/data/sylph/taxonomy-a.tsv")],
@@ -60,7 +60,7 @@ nextflow_process {
             def profile = file(output[2])
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'deacon_filtered', deacon_id: 'host'] },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', read_set: 'deacon_filtered', deacon_id: 'host'] },
                 { assert output[1] == [id: 'reference-a', taxonomy: [metadata: ['taxonomy-a']]] },
                 { assert profile.name == 'sample-a__deacon-host.sylphmpa' },
                 { assert profile.text.contains('clade_name\trelative_abundance') },

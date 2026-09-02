@@ -20,7 +20,7 @@ nextflow_process {
                 """
                 input[0] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
                     tuple(
-                        [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'],
+                        [id: 'sample-a', platform: 'ont', read_set: 'input'],
                         [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [1, 10], discriminatory: false, confidence: true, limit: null]],
                         [file("\$baseDir/tests/data/sylph/reads.fastq")],
                         queryIndex,
@@ -35,7 +35,7 @@ nextflow_process {
             def lines = file(output[2]).readLines()
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', read_set: 'input'] },
                 { assert output[1].id == 'reference-a' },
                 { assert file(output[2]).name == 'sample-a__input.skope.tsv' },
                 { assert lines[0].contains('containment1_ci') },
@@ -46,17 +46,22 @@ nextflow_process {
         }
     }
 
-    test("queries a gzip-compressed paired read set as one sample") {
+    test("queries several gzip-compressed FASTQs as one sample") {
         setup {
             def readOne = file("$outputDir/r1/reads.fastq.gz")
             def readTwo = file("$outputDir/r2/reads.fastq.gz")
+            def readThree = file("$outputDir/extra/reads.fastq.gz")
             readOne.parentFile.mkdirs()
             readTwo.parentFile.mkdirs()
+            readThree.parentFile.mkdirs()
             new java.util.zip.GZIPOutputStream(readOne.newOutputStream()).withCloseable { gzip ->
                 gzip.write(file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").bytes)
             }
             new java.util.zip.GZIPOutputStream(readTwo.newOutputStream()).withCloseable { gzip ->
                 gzip.write(file("${projectDir}/tests/data/deacon/mates/r2/reads.fastq").bytes)
+            }
+            new java.util.zip.GZIPOutputStream(readThree.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
             }
 
             run("BUILD_SKOPE_QUERY_INDEX") {
@@ -72,9 +77,9 @@ nextflow_process {
                 """
                 input[0] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.map { build, queryIndex ->
                     tuple(
-                        [id: 'paired', platform: 'illumina', single_end: false, read_set: 'deacon_filtered', deacon_id: 'host'],
+                        [id: 'sample-a', platform: 'illumina', read_set: 'deacon_filtered', deacon_id: 'host'],
                         [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]],
-                        [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz")],
+                        [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz"), file("$outputDir/extra/reads.fastq.gz")],
                         queryIndex,
                     )
                 }
@@ -89,9 +94,9 @@ nextflow_process {
             def sampleSeqsColumn = rows[0].indexOf('sample_seqs')
             assertAll(
                 { assert process.success },
-                { assert file(output[2]).name == 'paired__deacon-host.skope.tsv' },
-                { assert rows[1][sampleColumn] == 'paired__deacon-host' },
-                { assert rows[1][sampleSeqsColumn] == '2' },
+                { assert file(output[2]).name == 'sample-a__deacon-host.skope.tsv' },
+                { assert rows[1][sampleColumn] == 'sample-a__deacon-host' },
+                { assert rows[1][sampleSeqsColumn] == '3' },
                 { assert rows.size() == 2 },
                 { assert rows.every { row -> row[0] != 'TOTAL' } },
             )
@@ -101,7 +106,7 @@ nextflow_process {
     test("stubs a distinguishable Skope result") {
         when {
             process {
-                """input[0] = [[id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]], [file("\$baseDir/tests/data/sylph/reads.fastq")], file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
+                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'input'], [id: 'reference-a', query: [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null]], [file("\$baseDir/tests/data/sylph/reads.fastq")], file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
             }
             options '-stub-run'
         }

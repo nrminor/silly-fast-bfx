@@ -337,7 +337,7 @@ nextflow_workflow {
                         id: 'shared-explicit',
                         fastas: [[kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()]],
                         build: [kmer_length: 31, compression: 200, individual_records: false, min_spacing: 30],
-                        sample_sketch: [kmer_length: 31, compression: 100, no_dedup: true, fpr: 0.0],
+                        sample_sketch: [kmer_length: 31, compression: 100, no_dedup: true],
                         profile: [minimum_ani: 99, estimate_unknown: true, estimate_read_counts: true, read_seq_id: 99.5],
                     ],
                     [
@@ -379,11 +379,11 @@ nextflow_workflow {
                 { assert workflow.out.sylph.size() == 6 },
                 { assert prepared.keySet() == ['shared-defaults', 'shared-explicit', 'forward', 'reverse', 'renamed', 'different-settings'] as Set },
                 { assert prepared['shared-defaults'].reference.build == [kmer_length: 31, compression: 200, individual_records: false, min_spacing: 30] },
-                { assert prepared['shared-defaults'].sampleSketch == [kmer_length: 31, compression: 200, no_dedup: false, fpr: 0.0001] },
+                { assert prepared['shared-defaults'].sampleSketch == [kmer_length: 31, compression: 200, no_dedup: false] },
                 { assert prepared['shared-defaults'].reference.profile == [minimum_ani: 90, min_count_correct: 3, min_number_kmers: 50, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null] },
-                { assert prepared['shared-explicit'].sampleSketch == [kmer_length: 31, compression: 100, no_dedup: true, fpr: 0.0] },
+                { assert prepared['shared-explicit'].sampleSketch == [kmer_length: 31, compression: 100, no_dedup: true] },
                 { assert prepared['shared-explicit'].reference.profile == [minimum_ani: 99, min_count_correct: 3, min_number_kmers: 50, estimate_unknown: true, estimate_read_counts: true, read_seq_id: 99.5] },
-                { assert prepared['different-settings'].sampleSketch == [kmer_length: 21, compression: 100, no_dedup: false, fpr: 0.0001] },
+                { assert prepared['different-settings'].sampleSketch == [kmer_length: 21, compression: 100, no_dedup: false] },
                 { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 5 },
             )
         }
@@ -455,7 +455,7 @@ nextflow_workflow {
             def prepared = workflow.out.sylph[0]
             assertAll(
                 { assert workflow.success },
-                { assert prepared[0] == [kmer_length: 31, compression: 100, no_dedup: false, fpr: 0.0001] },
+                { assert prepared[0] == [kmer_length: 31, compression: 100, no_dedup: false] },
                 { assert prepared[1].profile == [minimum_ani: 95, min_count_correct: 3, min_number_kmers: 12, estimate_unknown: true, estimate_read_counts: false, read_seq_id: 99.5] },
                 { assert file(prepared[2]).name == 'prebuilt.syldb' },
                 { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SYLPH_DATABASE') } },

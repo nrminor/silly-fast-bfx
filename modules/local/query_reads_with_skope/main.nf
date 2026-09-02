@@ -4,7 +4,7 @@ process QUERY_READS_WITH_SKOPE {
     input:
     tuple val(meta),
           val(reference),
-          path(reads, stageAs: 'reads/read??.fastq', arity: '1..2'),
+          path(reads, stageAs: 'reads/read??????.fastq', arity: '1..*'),
           path(query_index)
 
     output:

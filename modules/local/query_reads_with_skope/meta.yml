@@ -19,7 +19,7 @@ input:
       description: Normalized Skope reference specification including query settings.
   - reads:
       type: file
-      description: One single-end FASTQ or a paired FASTQ read set.
+      description: One or more ordered FASTQ read encodings.
   - query_index:
       type: file
       description: Prepared Skope query index.

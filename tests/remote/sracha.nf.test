@@ -32,9 +32,9 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert reads_by_id.keySet() == ['single-sra', 'paired-sra'] as Set },
-                { assert reads_by_id['single-sra'].meta.single_end },
+                { assert reads_by_id['single-sra'].meta.keySet() == ['id', 'platform', 'read_set'] as Set },
                 { assert reads_by_id['single-sra'].reads.size() == 1 },
-                { assert !reads_by_id['paired-sra'].meta.single_end },
+                { assert reads_by_id['paired-sra'].meta.keySet() == ['id', 'platform', 'read_set'] as Set },
                 { assert reads_by_id['paired-sra'].reads.size() == 2 },
             )
         }

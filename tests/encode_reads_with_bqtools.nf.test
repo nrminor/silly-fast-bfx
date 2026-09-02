@@ -5,10 +5,10 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("encodes one single-end read set as CBQ") {
+    test("encodes one FASTQ as CBQ") {
         when {
             process {
-                """input[0] = [[id: 'single', platform: 'ont', single_end: true, read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching.fastq")]]"""
+                """input[0] = [[id: 'single', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching.fastq")]]"""
             }
         }
 
@@ -23,10 +23,23 @@ nextflow_process {
         }
     }
 
-    test("encodes paired FASTQ as one paired CBQ") {
+    test("encodes several FASTQs as one CBQ") {
+        setup {
+            [
+                [file("$outputDir/r1/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/paired_R1.fastq")],
+                [file("$outputDir/r2/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/paired_R2.fastq")],
+                [file("$outputDir/extra/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/single.fastq")],
+            ].each { target, source ->
+                target.parentFile.mkdirs()
+                new java.util.zip.GZIPOutputStream(target.newOutputStream()).withCloseable { gzip ->
+                    gzip.write(source.bytes)
+                }
+            }
+        }
+
         when {
             process {
-                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching_R1.fastq"), file("\$baseDir/tests/data/deacon/matching_R2.fastq")]]"""
+                """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz"), file("$outputDir/extra/reads.fastq.gz")]]"""
             }
         }
 
@@ -37,10 +50,10 @@ nextflow_process {
         }
     }
 
-    test("stubs paired reads without changing metadata") {
+    test("stubs several reads without changing metadata") {
         when {
             process {
-                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [file("\$baseDir/tests/data/fastq/paired_R1.fastq"), file("\$baseDir/tests/data/fastq/paired_R2.fastq")]]"""
+                """input[0] = [[id: 'paired', platform: 'illumina', read_set: 'input'], [file("\$baseDir/tests/data/fastq/paired_R1.fastq"), file("\$baseDir/tests/data/fastq/paired_R2.fastq")]]"""
             }
             options '-stub-run'
         }
@@ -49,7 +62,7 @@ nextflow_process {
             def output = process.out.encodings[0]
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'] },
+                { assert output[0] == [id: 'paired', platform: 'illumina', read_set: 'input'] },
                 { assert file(output[1]).name == 'paired.cbq' },
                 { assert file(output[1]).text == 'stub cbq' },
             )

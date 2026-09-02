@@ -32,7 +32,6 @@ sylph:
         kmer_length: 31
         compression: 200
         no_dedup: false
-        fpr: 0.0001
       profile:
         minimum_ani: 95
         min_count_correct: 3

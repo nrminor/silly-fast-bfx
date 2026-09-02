@@ -5,20 +5,20 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("retains a matching single-end CBQ and reports meaningful reads") {
+    test("retains a matching CBQ record and reports meaningful reads") {
         when {
             process {
-                """input[0] = [[id: 'matching', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+                """input[0] = [[id: 'matching', platform: 'ont', read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
             }
         }
 
         then {
             def output = process.out.reads[0]
-            def reads = new java.util.zip.GZIPInputStream(file(output[2][0]).newInputStream()).text
+            def reads = new java.util.zip.GZIPInputStream(file(output[2]).newInputStream()).text
             def summary = new groovy.json.JsonSlurper().parse(file(output[3]))
             assertAll(
                 { assert process.success },
-                { assert output[2].collect { file(it).name } == ['matching.fastq.gz'] },
+                { assert file(output[2]).name == 'matching.fastq.gz' },
                 { assert output[4] == 'true' },
                 { assert reads == file("${projectDir}/tests/data/deacon/matching.fastq").text },
                 { assert summary.seqs_out == 1 },
@@ -29,17 +29,17 @@ nextflow_process {
     test("preserves official zero-hit outputs") {
         when {
             process {
-                """input[0] = [[id: 'nonmatching', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/nonmatching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+                """input[0] = [[id: 'nonmatching', platform: 'ont', read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/nonmatching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
             }
         }
 
         then {
             def output = process.out.reads[0]
-            def reads = new java.util.zip.GZIPInputStream(file(output[2][0]).newInputStream()).text
+            def reads = new java.util.zip.GZIPInputStream(file(output[2]).newInputStream()).text
             def summary = new groovy.json.JsonSlurper().parse(file(output[3]))
             assertAll(
                 { assert process.success },
-                { assert output[2].collect { file(it).name } == ['nonmatching.fastq.gz'] },
+                { assert file(output[2]).name == 'nonmatching.fastq.gz' },
                 { assert output[4] == 'false' },
                 { assert reads.isEmpty() },
                 { assert summary.seqs_out == 0 },
@@ -47,40 +47,48 @@ nextflow_process {
         }
     }
 
-    test("materializes paired CBQ output as separate FASTQs") {
+    test("filters a multifile CBQ into one FASTQ") {
+        setup {
+            [
+                [file("$outputDir/first/reads.fastq.gz"), file("${projectDir}/tests/data/deacon/nonmatching.fastq")],
+                [file("$outputDir/second/reads.fastq.gz"), file("${projectDir}/tests/data/deacon/matching.fastq")],
+            ].each { target, source ->
+                target.parentFile.mkdirs()
+                new java.util.zip.GZIPOutputStream(target.newOutputStream()).withCloseable { gzip ->
+                    gzip.write(source.bytes)
+                }
+            }
+            run("ENCODE_READS_WITH_BQTOOLS") {
+                script "../modules/local/encode_reads_with_bqtools/main.nf"
+                process {
+                    """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/first/reads.fastq.gz"), file("$outputDir/second/reads.fastq.gz")]]"""
+                }
+            }
+        }
+
         when {
             process {
-                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+                """
+                input[0] = ENCODE_READS_WITH_BQTOOLS.out.encodings.map { meta, cbq ->
+                    tuple(
+                        meta,
+                        [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],
+                        cbq,
+                        file("\$baseDir/tests/data/deacon/reference.k31w15.idx"),
+                    )
+                }
+                """
             }
         }
 
         then {
             def output = process.out.reads[0]
+            def reads = new java.util.zip.GZIPInputStream(file(output[2]).newInputStream()).text
             assertAll(
                 { assert process.success },
-                { assert output[2].collect { file(it).name } == ['paired_R1.fastq.gz', 'paired_R2.fastq.gz'] },
+                { assert file(output[2]).name == 'sample-a.fastq.gz' },
+                { assert reads == file("${projectDir}/tests/data/deacon/matching.fastq").text },
                 { assert output[4] == 'true' },
-            )
-        }
-    }
-
-    test("preserves both official paired FASTQs when no pairs are retained") {
-        when {
-            process {
-                """input[0] = [[id: 'paired-empty', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 100, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
-            }
-        }
-
-        then {
-            def output = process.out.reads[0]
-            def reads = output[2].collect { path ->
-                new java.util.zip.GZIPInputStream(file(path).newInputStream()).text
-            }
-            assertAll(
-                { assert process.success },
-                { assert output[2].collect { file(it).name } == ['paired-empty_R1.fastq.gz', 'paired-empty_R2.fastq.gz'] },
-                { assert reads.every { it.isEmpty() } },
-                { assert output[4] == 'false' },
             )
         }
     }
@@ -88,7 +96,7 @@ nextflow_process {
     test("stubs zero hits while preserving the official output tuple") {
         when {
             process {
-                """input[0] = [[id: 'single', platform: 'ont', single_end: true, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 2, rel_threshold: 0.01, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
+                """input[0] = [[id: 'single', platform: 'ont', read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 2, rel_threshold: 0.01, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
             }
             options '-stub-run'
         }
@@ -97,28 +105,10 @@ nextflow_process {
             def output = process.out.reads[0]
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'single', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[0] == [id: 'single', platform: 'ont', read_set: 'input'] },
                 { assert output[1].id == 'reference-a' },
-                { assert output[2].collect { file(it).name } == ['single.fastq.gz'] },
+                { assert file(output[2]).name == 'single.fastq.gz' },
                 { assert file(output[3]).text == '{"seqs_out": 0}\n' },
-                { assert output[4] == 'false' },
-            )
-        }
-    }
-
-    test("stubs paired output with both gzip FASTQs") {
-        when {
-            process {
-                """input[0] = [[id: 'paired', platform: 'illumina', single_end: false, read_set: 'input'], [id: 'reference-a', filter: [abs_threshold: 2, rel_threshold: 0.01, prefix_length: 0, complexity_threshold: null, deplete: false]], file("\$baseDir/tests/data/deacon/matching_paired.cbq"), file("\$baseDir/tests/data/deacon/reference.k31w15.idx")]"""
-            }
-            options '-stub-run'
-        }
-
-        then {
-            def output = process.out.reads[0]
-            assertAll(
-                { assert process.success },
-                { assert output[2].collect { file(it).name } == ['paired_R1.fastq.gz', 'paired_R2.fastq.gz'] },
                 { assert output[4] == 'false' },
             )
         }

@@ -5,10 +5,10 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("keeps one single-end sample sketch distinguishable") {
+    test("keeps one sample sketch distinguishable") {
         when {
             process {
-                """input[0] = [[kmer_length: 31, compression: 2, no_dedup: true, fpr: 0.0], [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]]"""
+                """input[0] = [[kmer_length: 31, compression: 2, no_dedup: true], [id: 'sample-a', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]]"""
             }
         }
 
@@ -16,28 +16,40 @@ nextflow_process {
             def output = process.out.sketches[0]
             assertAll(
                 { assert process.success },
-                { assert output[0] == [kmer_length: 31, compression: 2, no_dedup: true, fpr: 0.0] },
-                { assert output[1] == [id: 'sample-a', platform: 'ont', single_end: true, read_set: 'input'] },
+                { assert output[0] == [kmer_length: 31, compression: 2, no_dedup: true] },
+                { assert output[1] == [id: 'sample-a', platform: 'ont', read_set: 'input'] },
                 { assert file(output[2]).name == 'sample-a__input.sylsp' },
                 { assert file(output[2]).size() > 0 },
             )
         }
     }
 
-    test("keeps a paired filtered-read sketch distinguishable when mate basenames collide") {
+    test("streams several FASTQs into one distinguishable sample sketch") {
+        setup {
+            def shortReads = file("$outputDir/first/reads.fastq.gz")
+            def meaningfulReads = file("$outputDir/second/reads.fastq.gz")
+            shortReads.parentFile.mkdirs()
+            meaningfulReads.parentFile.mkdirs()
+            new java.util.zip.GZIPOutputStream(shortReads.newOutputStream()).withCloseable { gzip ->
+                gzip.write('@short\nACGT\n+\nIIII\n'.bytes)
+            }
+            new java.util.zip.GZIPOutputStream(meaningfulReads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
+        }
+
         when {
             process {
-                """input[0] = [[kmer_length: 31, compression: 2, no_dedup: false, fpr: 0.0001], [id: 'sample-a', platform: 'illumina', single_end: false, read_set: 'deacon_filtered', deacon_id: 'host'], [file("\$baseDir/tests/data/deacon/mates/r1/reads.fastq"), file("\$baseDir/tests/data/deacon/mates/r2/reads.fastq")]]"""
+                """input[0] = [[kmer_length: 31, compression: 2, no_dedup: false], [id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/first/reads.fastq.gz"), file("$outputDir/second/reads.fastq.gz")]]"""
             }
-            options '-stub-run'
         }
 
         then {
-            def output = process.out.sketches[0]
+            def sketch = file(process.out.sketches[0][2])
             assertAll(
                 { assert process.success },
-                { assert output[1].deacon_id == 'host' },
-                { assert file(output[2]).name == 'sample-a__deacon-host.paired.sylsp' },
+                { assert sketch.name == 'sample-a__input.sylsp' },
+                { assert sketch.size() > 0 },
             )
         }
     }

@@ -18,7 +18,7 @@ input:
       description: Read-set metadata retained unchanged in the output tuple.
   - reads:
       type: file
-      description: One single-end FASTQ or two paired-end FASTQs.
+      description: One or more ordered FASTQ read encodings.
 output:
   - sketches:
       type: file

@@ -34,11 +34,11 @@
             "type": "string",
             "format": "file-path",
             "exists": true,
-            "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
+            "pattern": "^/.*\\.(fastq|fq)\\.gz$",
             "not": {"pattern": "[?*\\[\\]{}]"}
           }
         ],
-        "errorMessage": "fastq1 must be empty or an existing absolute FASTQ path"
+        "errorMessage": "fastq1 must be empty or an existing absolute gzip-compressed FASTQ path"
       },
       "fastq2": {
         "oneOf": [
@@ -47,21 +47,21 @@
             "type": "string",
             "format": "file-path",
             "exists": true,
-            "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
+            "pattern": "^/.*\\.(fastq|fq)\\.gz$",
             "not": {"pattern": "[?*\\[\\]{}]"}
           }
         ],
-        "errorMessage": "fastq2 must be empty or an existing absolute FASTQ path"
+        "errorMessage": "fastq2 must be empty or an existing absolute gzip-compressed FASTQ path"
       },
       "fastq1_glob": {
         "type": ["string", "null"],
-        "pattern": "^(|/.*\\.(fastq|fq)(\\.gz)?)$",
-        "errorMessage": "fastq1_glob must be empty or an absolute FASTQ glob"
+        "pattern": "^(|/.*\\.(fastq|fq)\\.gz)$",
+        "errorMessage": "fastq1_glob must be empty or an absolute gzip-compressed FASTQ glob"
       },
       "fastq2_glob": {
         "type": ["string", "null"],
-        "pattern": "^(|/.*\\.(fastq|fq)(\\.gz)?)$",
-        "errorMessage": "fastq2_glob must be empty or an absolute FASTQ glob"
+        "pattern": "^(|/.*\\.(fastq|fq)\\.gz)$",
+        "errorMessage": "fastq2_glob must be empty or an absolute gzip-compressed FASTQ glob"
       }
     },
     "anyOf": [

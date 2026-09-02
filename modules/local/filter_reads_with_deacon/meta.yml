@@ -9,9 +9,6 @@ tools:
   - deacon:
       description: Fast DNA sequence search and host depletion using minimizers.
       homepage: https://github.com/bede/deacon
-  - bqtools:
-      description: Toolkit for encoding and decoding biological sequence data.
-      homepage: https://github.com/ArcInstitute/bqtools
 input:
   - meta:
       type: map
@@ -28,7 +25,7 @@ input:
 output:
   - reads:
       type: file
-      description: Tuple of unchanged metadata, reference, one or two gzip FASTQs, JSON summary, and HAS_READS.
+      description: Tuple of unchanged metadata, reference, one gzip FASTQ, JSON summary, and HAS_READS.
   - versions:
       type: file
       description: Software versions topic.

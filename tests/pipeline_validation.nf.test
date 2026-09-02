@@ -55,9 +55,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -113,9 +117,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -187,9 +195,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/deacon.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/matching.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -219,15 +231,19 @@ nextflow_pipeline {
     test("equivalent exact and grouped inputs preserve downstream task cardinality") {
         setup {
             def samplesheet = file("$outputDir/deacon-grouped.csv")
-            def laneOne = file("$outputDir/grouped_L001_R1_001.fastq")
-            def laneTwo = file("$outputDir/grouped_L002_R1_001.fastq")
+            def exact = file("$outputDir/exact.fastq.gz")
+            def laneOne = file("$outputDir/grouped_L001_R1_001.fastq.gz")
+            def laneTwo = file("$outputDir/grouped_L002_R1_001.fastq.gz")
             samplesheet.parentFile.mkdirs()
-            laneOne.bytes = file("${projectDir}/tests/data/deacon/matching.fastq").bytes
-            laneTwo.bytes = file("${projectDir}/tests/data/deacon/matching.fastq").bytes
+            [exact, laneOne, laneTwo].each { target ->
+                new java.util.zip.GZIPOutputStream(target.newOutputStream()).withCloseable { gzip ->
+                    gzip.write(file("${projectDir}/tests/data/deacon/matching.fastq").bytes)
+                }
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2,fastq1_glob,fastq2_glob",
-                "exact,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,,,",
-                "grouped,,nanopore,,,$outputDir/grouped_L*_R1_001.fastq,",
+                "exact,,nanopore,$exact,,,",
+                "grouped,,nanopore,,,$outputDir/grouped_L*_R1_001.fastq.gz,",
             ].join('\n') + '\n'
         }
 
@@ -247,7 +263,6 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().count { it.name.contains('COLLATE_FASTQ') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 2 },
             )
@@ -258,9 +273,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/deacon-source.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/matching.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -291,9 +310,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/sylph-source.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -338,9 +361,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/sylph-taxonomy.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -374,9 +401,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/skope-source.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -421,9 +452,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -451,9 +486,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -482,9 +521,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/skip-sylph.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/matching.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/deacon/matching.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -525,9 +568,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/skip-skope.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,nanopore,${projectDir}/tests/data/sylph/reads.fastq,",
+                "sample-a,,nanopore,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -572,9 +619,13 @@ nextflow_pipeline {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
         }
 
@@ -588,7 +639,7 @@ nextflow_pipeline {
                         id: "reference-a",
                         read_sets: [input: true, deacon_filtered: []],
                         database: [kind: "https", url: "https://example.org/reference.syldb"],
-                        sample_sketch: [no_dedup: true, fpr: 0.0],
+                        sample_sketch: [no_dedup: true],
                         profile: [
                             min_count_correct: 2.5,
                             min_number_kmers: 50.5,
@@ -676,9 +727,13 @@ nextflow_pipeline {
             def samplesheet = file("$outputDir/exact.csv")
             def params_file = file("$outputDir/params.example.yaml")
             samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/fastq/single.fastq").bytes)
+            }
             samplesheet.text = [
                 "sample_id,srr,platform,fastq1,fastq2",
-                "sample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,",
+                "sample-a,,illumina,$reads,",
             ].join('\n') + '\n'
             params_file.text = file("${projectDir}/assets/params.example.yaml")
                 .readLines()

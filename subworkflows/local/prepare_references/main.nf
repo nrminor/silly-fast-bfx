@@ -43,7 +43,6 @@ workflow PREPARE_REFERENCES {
             kmer_length: build?.kmer_length ?: 31,
             compression: build?.compression ?: 200,
             no_dedup: false,
-            fpr: 0.0001,
         ] + (reference.sample_sketch ?: [:])
 
         if (build && sample_sketch.kmer_length != build.kmer_length) {
