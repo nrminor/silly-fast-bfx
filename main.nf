@@ -12,9 +12,17 @@ def describeReadSets(read_sets) {
         .join(', ')
 }
 
-def formatReference(reference, fields) {
+def chooseLaunchColors(ansi_enabled) {
+    ansi_enabled
+        ? [reset: '\033[0m', bold: '\033[1m', dim: '\033[2m', blue: '\033[0;34m', green: '\033[0;32m']
+        : [reset: '', bold: '', dim: '', blue: '', green: '']
+}
+
+def formatReference(reference, fields, colors) {
     def configured_fields = fields.findAll { _label, value -> value != null }
-    ["    ${reference.id}"] + configured_fields.collect { label, value -> "      ${label}: ${value}" }
+    ["  ${reference.id}"] + configured_fields.collect { label, value ->
+        "    ${colors.blue}${label}: ${colors.green}${value}${colors.reset}"
+    }
 }
 
 workflow {
@@ -38,13 +46,17 @@ workflow {
     active_sylph_references = sylph_references.findAll { sylph_enabled }
     active_skope_references = skope_references.findAll { skope_enabled }
 
+    ansi_enabled = workflow.session.ansiLog &&
+        !workflow.session.config.navigate('validation.monochromeLogs')
+    colors = chooseLaunchColors(ansi_enabled)
+
     deacon_summary = active_deacon_references.collect { reference ->
         formatReference(reference, [
             'minimum index hits': reference.filter?.abs_threshold,
             'minimum hit proportion': reference.filter?.rel_threshold,
             'minimum minimizer complexity': reference.filter?.complexity_threshold,
             'discard matching reads': reference.filter?.deplete ? true : null,
-        ])
+        ], colors)
     }.flatten()
 
     sylph_summary = active_sylph_references.collect { reference ->
@@ -54,7 +66,7 @@ workflow {
             'minimum ANI': reference.profile?.minimum_ani,
             'minimum k-mer multiplicity': reference.profile?.min_count_correct,
             'minimum sampled k-mers': reference.profile?.min_number_kmers,
-        ])
+        ], colors)
     }.flatten()
 
     skope_summary = active_skope_references.collect { reference ->
@@ -64,23 +76,25 @@ workflow {
             'confidence intervals': reference.query?.confidence ? 'enabled' : null,
             'unique target syncmers': reference.query?.discriminatory ? 'enabled' : null,
             'sample base limit': reference.query?.limit,
-        ])
+        ], colors)
     }.flatten()
 
     search_summary = [
-        active_deacon_references ? ['', '  deacon'] + deacon_summary : [],
-        active_sylph_references ? ['', '  sylph'] + sylph_summary : [],
-        active_skope_references ? ['', '  skope'] + skope_summary : [],
+        active_deacon_references ? ["${colors.bold}Deacon searches${colors.reset}"] + deacon_summary + [''] : [],
+        active_sylph_references ? ["${colors.bold}Sylph searches${colors.reset}"] + sylph_summary + [''] : [],
+        active_skope_references ? ["${colors.bold}Skope searches${colors.reset}"] + skope_summary + [''] : [],
     ].flatten()
 
+    pipeline_name = workflow.manifest.name.tokenize('/').last()
     launch_summary = ([
-        'Searches',
-    ] + (search_summary ?: ['', '  none enabled']) + [
+        "${colors.bold}${pipeline_name} (pre-versioned)${colors.reset}",
+        "-${colors.dim}----------------------------------------------------${colors.reset}-",
         '',
-        'Input and output',
-        "  samplesheet: ${params.input}",
-        "  results: ${params.results}",
-    ]).join('\n')
+    ] + (search_summary ?: ["${colors.bold}No searches enabled${colors.reset}", '']) + [
+        "${colors.bold}Input and output${colors.reset}",
+        "  ${colors.blue}samplesheet: ${colors.green}${params.input}${colors.reset}",
+        "  ${colors.blue}results: ${colors.green}${params.results}${colors.reset}",
+    ]).join('\n') + '\n'
 
     UTILS_NFSCHEMA_PLUGIN(
         workflow,

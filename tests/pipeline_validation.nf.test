@@ -95,10 +95,15 @@ nextflow_pipeline {
             def output = file("$metaDir/nextflow.log").text
             assertAll(
                 { assert workflow.success },
+                { assert output.contains('silly-fast-bfx (pre-versioned)') },
+                { assert output.contains('------------------------------------------------------') },
                 { assert output.contains('Input and output') },
                 { assert output.contains('samplesheet:') },
                 { assert output.contains('results:') },
-                { assert output.contains('Searches') },
+                { assert output.contains('Deacon searches\n  deacon-a') },
+                { assert output.contains('Sylph searches\n  sylph-a') },
+                { assert output.contains('Skope searches\n  skope-a') },
+                { assert !output.contains('\nSearches\n') },
                 { assert output.contains('minimum index hits: 1') },
                 { assert output.contains('minimum hit proportion: 0.0') },
                 { assert output.contains('minimum minimizer complexity: 0.5') },
@@ -109,6 +114,7 @@ nextflow_pipeline {
                 { assert output.contains('syncmer abundance thresholds: 2, 3, 5') },
                 { assert output.contains('confidence intervals: enabled') },
                 { assert output.contains('nrminor/silly-fast-bfx:dev') },
+                { assert output.contains("  results: ${launchDir}/results\n\n") },
                 { assert !output.contains('[references:[[') },
                 { assert !output.contains('Other parameters') },
             )
