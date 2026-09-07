@@ -1,0 +1,42 @@
+nextflow_process {
+    name "Concatenate CBQs with bqtools process"
+    script "../modules/local/concatenate_cbqs_with_bqtools/main.nf"
+    process "CONCATENATE_CBQS_WITH_BQTOOLS"
+    tag "modules"
+    tag "modules_local"
+
+    test("concatenates independent CBQs into one read encoding") {
+        setup {
+            run("ENCODE_READS_WITH_BQTOOLS") {
+                script "../modules/local/encode_reads_with_bqtools/main.nf"
+                process {
+                    """
+                    input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [
+                        file("\$baseDir/tests/data/fastq/paired_R1.fastq"),
+                        file("\$baseDir/tests/data/fastq/paired_R2.fastq"),
+                    ]]
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """input[0] = ENCODE_READS_WITH_BQTOOLS.out.encodings"""
+            }
+        }
+
+        then {
+            def output = process.out.encodings[0]
+            def info = ['bqtools', 'info', '--num', file(output[1]).toString()].execute()
+            def record_count = info.text.trim().split('\\t')[0]
+            assertAll(
+                { assert process.success },
+                { assert output[0] == [id: 'sample-a', platform: 'illumina', read_set: 'input'] },
+                { assert file(output[1]).name == 'sample-a.cbq' },
+                { assert info.waitFor() == 0 },
+                { assert record_count == '4' },
+            )
+        }
+    }
+}

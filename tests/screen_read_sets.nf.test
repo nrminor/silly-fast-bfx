@@ -44,6 +44,7 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 2 },
+                { assert workflow.trace.tasks().count { it.name.contains('CONCATENATE_CBQS_WITH_BQTOOLS') } == 0 },
                 { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 4 },
                 { assert official.keySet() == ['sample-a:meaningful', 'sample-a:empty', 'sample-b:meaningful', 'sample-b:empty'] as Set },
                 { assert official['sample-a:meaningful'].has_reads == 'true' },
@@ -84,6 +85,7 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('CONCATENATE_CBQS_WITH_BQTOOLS') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
                 { assert output[1].collect { file(it).name } == ['paired.fastq.gz'] },
                 { assert reads == file("${projectDir}/tests/data/deacon/mates/r1/reads.fastq").text },

@@ -14,16 +14,18 @@ nextflow_process {
 
         then {
             def output = process.out.encodings[0]
+            def cbqs = [output[1]].flatten()
             assertAll(
                 { assert process.success },
                 { assert output[0].id == 'single' },
-                { assert file(output[1]).name == 'single.cbq' },
-                { assert file(output[1]).size() > 0 },
+                { assert cbqs.size() == 1 },
+                { assert file(cbqs[0]).name == 'matching.cbq' },
+                { assert file(cbqs[0]).size() > 0 },
             )
         }
     }
 
-    test("encodes two FASTQs as independent records in one CBQ") {
+    test("encodes two FASTQs as separate CBQs") {
         setup {
             [
                 [file("$outputDir/r1/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/paired_R1.fastq")],
@@ -44,12 +46,17 @@ nextflow_process {
 
         then {
             def output = process.out.encodings[0]
-            def info = ['bqtools', 'info', '--num', file(output[1]).toString()].execute()
-            def record_count = info.text.trim().split('\\t')[0]
+            def cbqs = [output[1]].flatten()
+            def record_counts = cbqs.collect { cbq ->
+                def info = ['bqtools', 'info', '--num', file(cbq).toString()].execute()
+                def count = info.text.trim().split('\\t')[0]
+                assert info.waitFor() == 0
+                count
+            }
             assert process.success
             assert process.out.encodings.size() == 1
-            assert info.waitFor() == 0
-            assert record_count == '4'
+            assert cbqs.size() == 2
+            assert record_counts == ['2', '2']
         }
     }
 
@@ -63,11 +70,12 @@ nextflow_process {
 
         then {
             def output = process.out.encodings[0]
+            def cbqs = [output[1]].flatten()
             assertAll(
                 { assert process.success },
                 { assert output[0] == [id: 'paired', platform: 'illumina', read_set: 'input'] },
-                { assert file(output[1]).name == 'paired.cbq' },
-                { assert file(output[1]).text == 'stub cbq' },
+                { assert cbqs.size() == 2 },
+                { assert cbqs.every { cbq -> file(cbq).text == 'stub cbq' } },
             )
         }
     }

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
-name: "encode_reads_with_bqtools"
-description: Losslessly encode each FASTQ in one read set as CBQ.
+name: "concatenate_cbqs_with_bqtools"
+description: Concatenate several CBQ read encodings into one CBQ.
 keywords:
   - bqtools
   - cbq
@@ -13,13 +13,13 @@ input:
   - meta:
       type: map
       description: Read-set metadata, retained unchanged in the output tuple.
-  - reads:
+  - cbqs:
       type: file
-      description: One or more ordered FASTQ read encodings.
+      description: Two or more CBQ read encodings from one read set.
 output:
   - encodings:
       type: file
-      description: Tuple of unchanged metadata and one CBQ read encoding per input FASTQ.
+      description: Tuple of unchanged metadata and one concatenated CBQ read encoding.
   - versions:
       type: file
       description: Software versions topic.

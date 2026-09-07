@@ -5,7 +5,7 @@ process ENCODE_READS_WITH_BQTOOLS {
     tuple val(meta), path(reads, stageAs: 'reads??????/*', arity: '1..*')
 
     output:
-    tuple val(meta), path("${meta.id}.cbq"), emit: encodings
+    tuple val(meta), path('reads??????/*.cbq', arity: '1..*'), emit: encodings
     path 'versions.yml', topic: versions
 
     when:
@@ -24,30 +24,17 @@ process ENCODE_READS_WITH_BQTOOLS {
         --threads ${task.cpus}
     )
 
-    if (( \${#staged_reads[@]} == 1 )); then
+    printf '%s\n' "\${staged_reads[@]}" |
         bqtools encode \
             "\${encode_args[@]}" \
-            --output ${meta.id}.cbq \
-            "\${staged_reads[0]}"
-    else
-        printf '%s\n' "\${staged_reads[@]}" |
-            bqtools encode \
-                "\${encode_args[@]}" \
-                --manifest /dev/stdin
+            --manifest /dev/stdin
 
-        encoded_reads=(reads??????/*.cbq)
-        if (( \${#encoded_reads[@]} != \${#staged_reads[@]} )); then
-            printf 'Expected %s CBQ files, but bqtools encoded %s\n' \
-                "\${#staged_reads[@]}" \
-                "\${#encoded_reads[@]}" >&2
-            exit 1
-        fi
-
-        bqtools cat \
-            "\${encoded_reads[@]}" \
-            --threads ${task.cpus} \
-            --output ${meta.id}.cbq
-        rm -- "\${encoded_reads[@]}"
+    encoded_reads=(reads??????/*.cbq)
+    if (( \${#encoded_reads[@]} != \${#staged_reads[@]} )); then
+        printf 'Expected %s CBQ files, but bqtools encoded %s\n' \
+            "\${#staged_reads[@]}" \
+            "\${#encoded_reads[@]}" >&2
+        exit 1
     fi
 
     BQTOOLS_VERSION="\$(bqtools --version)"
@@ -59,7 +46,13 @@ process ENCODE_READS_WITH_BQTOOLS {
 
     stub:
     """
-    printf 'stub cbq' > ${meta.id}.cbq
+    staged_reads=(reads??????/*)
+    for read in "\${staged_reads[@]}"; do
+        output="\${read%.gz}"
+        output="\${output%.zst}"
+        output="\${output%.*}.cbq"
+        printf 'stub cbq' > "\${output}"
+    done
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         bqtools: "stub"

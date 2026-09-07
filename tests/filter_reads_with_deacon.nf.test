@@ -64,12 +64,18 @@ nextflow_process {
                     """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/first/reads.fastq.gz"), file("$outputDir/second/reads.fastq.gz")]]"""
                 }
             }
+            run("CONCATENATE_CBQS_WITH_BQTOOLS") {
+                script "../modules/local/concatenate_cbqs_with_bqtools/main.nf"
+                process {
+                    """input[0] = ENCODE_READS_WITH_BQTOOLS.out.encodings"""
+                }
+            }
         }
 
         when {
             process {
                 """
-                input[0] = ENCODE_READS_WITH_BQTOOLS.out.encodings.map { meta, cbq ->
+                input[0] = CONCATENATE_CBQS_WITH_BQTOOLS.out.encodings.map { meta, cbq ->
                     tuple(
                         meta,
                         [id: 'reference-a', filter: [abs_threshold: 1, rel_threshold: 0.0, prefix_length: 0, complexity_threshold: null, deplete: false]],

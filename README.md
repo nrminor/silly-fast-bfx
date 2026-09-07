@@ -90,7 +90,7 @@ The `docker` and `apptainer` profiles enable their respective runtimes while lea
 |---|---|
 | [nf-schema](https://nextflow-io.github.io/nf-schema/latest/) | Validates run parameters and the samplesheet before work begins. |
 | [SRACha](https://github.com/rnabioco/sracha-rs) | Validates `SRR`, `ERR`, and `DRR` accessions and acquires their FASTQs. |
-| [BQTools](https://github.com/ArcInstitute/bqtools) | Encodes each read set as the CBQ read encoding consumed by Deacon. |
+| [BQTools](https://github.com/ArcInstitute/bqtools) | Encodes each FASTQ as CBQ and concatenates multifile read sets for Deacon. |
 | [Deacon](https://github.com/bede/deacon) | Builds minimizer indexes and produces filtered read sets. |
 | [Sylph](https://github.com/bluenote-1577/sylph) | Builds databases, creates sample sketches, and profiles selected read sets. |
 | [sylph-tax](https://github.com/bluenote-1577/sylph-tax) | Converts meaningful Sylph profiles into taxonomy summaries using explicit metadata. |

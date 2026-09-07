@@ -1,4 +1,5 @@
 include { ENCODE_READS_WITH_BQTOOLS } from '../../../modules/local/encode_reads_with_bqtools'
+include { CONCATENATE_CBQS_WITH_BQTOOLS } from '../../../modules/local/concatenate_cbqs_with_bqtools'
 include { FILTER_READS_WITH_DEACON   } from '../../../modules/local/filter_reads_with_deacon'
 include { SKETCH_READS_WITH_SYLPH    } from '../../../modules/local/sketch_reads_with_sylph'
 include { PROFILE_READS_WITH_SYLPH   } from '../../../modules/local/profile_reads_with_sylph'
@@ -24,7 +25,19 @@ workflow SCREEN_READ_SETS {
 
     ENCODE_READS_WITH_BQTOOLS(ch_deacon_input_reads)
 
-    ch_deacon_jobs = ENCODE_READS_WITH_BQTOOLS.out.encodings
+    ch_cbqs_by_cardinality = ENCODE_READS_WITH_BQTOOLS.out.encodings
+        .branch { meta, cbqs ->
+            singleton: cbqs.size() == 1
+            multiple: true
+        }
+
+    CONCATENATE_CBQS_WITH_BQTOOLS(ch_cbqs_by_cardinality.multiple)
+
+    ch_deacon_encodings = ch_cbqs_by_cardinality.singleton
+        .map { meta, cbqs -> tuple(meta, cbqs.first()) }
+        .mix(CONCATENATE_CBQS_WITH_BQTOOLS.out.encodings)
+
+    ch_deacon_jobs = ch_deacon_encodings
         .combine(deacon_references)
         .map { meta, cbq, reference, index ->
             tuple(meta, reference, cbq, index)
