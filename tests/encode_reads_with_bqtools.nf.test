@@ -23,12 +23,11 @@ nextflow_process {
         }
     }
 
-    test("encodes several FASTQs as one CBQ") {
+    test("encodes two FASTQs as independent records in one CBQ") {
         setup {
             [
                 [file("$outputDir/r1/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/paired_R1.fastq")],
                 [file("$outputDir/r2/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/paired_R2.fastq")],
-                [file("$outputDir/extra/reads.fastq.gz"), file("${projectDir}/tests/data/fastq/single.fastq")],
             ].each { target, source ->
                 target.parentFile.mkdirs()
                 new java.util.zip.GZIPOutputStream(target.newOutputStream()).withCloseable { gzip ->
@@ -39,14 +38,18 @@ nextflow_process {
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz"), file("$outputDir/extra/reads.fastq.gz")]]"""
+                """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("$outputDir/r1/reads.fastq.gz"), file("$outputDir/r2/reads.fastq.gz")]]"""
             }
         }
 
         then {
+            def output = process.out.encodings[0]
+            def info = ['bqtools', 'info', '--num', file(output[1]).toString()].execute()
+            def record_count = info.text.trim().split('\\t')[0]
             assert process.success
             assert process.out.encodings.size() == 1
-            assert file(process.out.encodings[0][1]).size() > 0
+            assert info.waitFor() == 0
+            assert record_count == '4'
         }
     }
 
