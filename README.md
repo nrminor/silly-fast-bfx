@@ -60,6 +60,8 @@ Built indexes and databases, sample sketches, CBQ read encodings, and downloaded
 
 The params YAML names the samplesheet and declares tool-specific reference specifications. Start from the [example YAML](assets/params.example.yaml); use [`nextflow_schema.json`](nextflow_schema.json) for the complete parameter contract and [`assets/samplesheet_schema.json`](assets/samplesheet_schema.json) for the samplesheet contract rather than copying every scientific option into a run guide.
 
+Set `work_dir: /scratch/my-run/work` in the params YAML to choose Nextflow's work directory without passing `-work-dir`. When omitted, it defaults to `NXF_WORK` when set, otherwise `work/` in the launch directory. This is separate from `results`, which controls the published results bundle.
+
 The samplesheet supports three source modes. For users in the O'Connor group, this is the same samplesheet format accepted by NVD:
 
 | Source mode | Samplesheet fields | Behavior |
