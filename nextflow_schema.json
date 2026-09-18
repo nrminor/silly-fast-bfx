@@ -19,7 +19,7 @@
       "description": "Root directory for the results bundle."
     },
     "work_dir": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "path",
       "description": "Nextflow work directory. Defaults to NXF_WORK when set, otherwise work/ in the launch directory."
     },
