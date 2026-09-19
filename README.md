@@ -62,6 +62,15 @@ The params YAML names the samplesheet and declares tool-specific reference speci
 
 Set `work_dir: /scratch/my-run/work` in the params YAML to choose Nextflow's work directory without passing `-work-dir`. When omitted, it defaults to `NXF_WORK` when set, otherwise `work/` in the launch directory. This is separate from `results`, which controls the published results bundle.
 
+`bqtools.block_size` controls the CBQ virtual block size for every sample encoded for Deacon, regardless of platform. It defaults to `128K`; increase it for long reads when needed:
+
+```yaml
+bqtools:
+  block_size: 1M
+```
+
+Use a positive integer string in bytes (for example, `"131072"`) or an integer with a `K`, `M`, or `G` suffix (powers of 1024, case-insensitive). The size is in bytes, not bases or records. BQTools 0.5.14 concatenation inherits the input CBQ header's block size; its `cat --block-size` flag does not override that size. All inputs to concatenation are encoded with the same run-wide setting.
+
 The samplesheet supports three source modes. For users in the O'Connor group, this is the same samplesheet format accepted by NVD:
 
 | Source mode | Samplesheet fields | Behavior |

@@ -855,4 +855,71 @@ deacon:
         }
     }
 
+    test("a params YAML accepts a run-wide BQTools block-size override") {
+        setup {
+            def samplesheet = file("$outputDir/bqtools.csv")
+            def reads = file("$outputDir/reads.fastq.gz")
+            def params_file = file("$outputDir/bqtools.yaml")
+            samplesheet.parentFile.mkdirs()
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/deacon/matching.fastq").bytes)
+            }
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,$reads,",
+            ].join('\n') + '\n'
+            params_file.text = """\
+input: $samplesheet
+bqtools:
+  block_size: 1M
+deacon:
+  references:
+    - id: reference-a
+      index:
+        kind: local
+        path: ${projectDir}/tests/data/deacon/reference.k31w15.idx
+      filter:
+        abs_threshold: 1
+        rel_threshold: 0.0
+"""
+        }
+
+        when {
+            params {
+                load("$outputDir/bqtools.yaml")
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('ENCODE_READS_WITH_BQTOOLS') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 1 },
+            )
+        }
+    }
+
+    test("a params YAML rejects an invalid BQTools block size") {
+        setup {
+            def params_file = file("$outputDir/invalid-bqtools.yaml")
+            params_file.parentFile.mkdirs()
+            params_file.text = """\
+input: /tmp/not-read.csv
+bqtools:
+  block_size: 0K
+"""
+        }
+
+        when {
+            params {
+                load("$outputDir/invalid-bqtools.yaml")
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("block_size")
+        }
+    }
+
 }

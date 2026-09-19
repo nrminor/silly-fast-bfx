@@ -23,6 +23,20 @@
       "format": "path",
       "description": "Nextflow work directory. Defaults to NXF_WORK when set, otherwise work/ in the launch directory."
     },
+    "bqtools": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {"block_size": "128K"},
+      "description": "Run-wide settings for BQTools CBQ read encodings.",
+      "properties": {
+        "block_size": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[KkMmGg]?$",
+          "default": "128K",
+          "description": "CBQ virtual block size: a positive integer in bytes, optionally suffixed with K, M, or G (powers of 1024). Concatenation inherits this size from the encoded inputs."
+        }
+      }
+    },
     "skip_deacon": {
       "type": "boolean",
       "default": false,

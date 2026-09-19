@@ -5,15 +5,26 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("concatenates independent CBQs into one read encoding") {
+    test("inherits the encoded CBQ block size and preserves variable-length records") {
         setup {
+            def first_reads = file("$outputDir/first.fastq")
+            def second_reads = file("$outputDir/second.fastq")
+            def fastqRecord = { id, length ->
+                "@${id}\n${'A' * length}\n+\n${'I' * length}\n"
+            }
+            first_reads.text = fastqRecord('short', 25) + fastqRecord('long', 128 * 1024 + 1)
+            second_reads.text = fastqRecord('medium', 4096)
+
             run("ENCODE_READS_WITH_BQTOOLS") {
                 script "../modules/local/encode_reads_with_bqtools/main.nf"
+                params {
+                    bqtools = [block_size: '1M']
+                }
                 process {
                     """
-                    input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [
-                        file("\$baseDir/tests/data/fastq/paired_R1.fastq"),
-                        file("\$baseDir/tests/data/fastq/paired_R2.fastq"),
+                    input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'input'], [
+                        file("$first_reads"),
+                        file("$second_reads"),
                     ]]
                     """
                 }
@@ -28,14 +39,18 @@ nextflow_process {
 
         then {
             def output = process.out.encodings[0]
-            def info = ['bqtools', 'info', '--num', file(output[1]).toString()].execute()
-            def record_count = info.text.trim().split('\\t')[0]
+            def info = ['bqtools', 'info', '--json', file(output[1]).toString()].execute()
+            def metadata = new groovy.json.JsonSlurper().parseText(info.text)
+            def decoded = ['bqtools', 'decode', '--format', 'q', file(output[1]).toString()].execute()
+            def decoded_text = decoded.text
             assertAll(
                 { assert process.success },
-                { assert output[0] == [id: 'sample-a', platform: 'illumina', read_set: 'input'] },
+                { assert output[0] == [id: 'sample-a', platform: 'ont', read_set: 'input'] },
                 { assert file(output[1]).name == 'sample-a.cbq' },
                 { assert info.waitFor() == 0 },
-                { assert record_count == '4' },
+                { assert metadata[0].block_size == 1024 * 1024 },
+                { assert decoded.waitFor() == 0 },
+                { assert decoded_text == file("$outputDir/first.fastq").text + file("$outputDir/second.fastq").text },
             )
         }
     }

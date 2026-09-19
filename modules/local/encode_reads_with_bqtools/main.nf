@@ -12,6 +12,7 @@ process ENCODE_READS_WITH_BQTOOLS {
     task.ext.when == null || task.ext.when
 
     script:
+    def block_size = task.ext.block_size ?: '128K'
     """
     set -o pipefail
     shopt -s nullglob
@@ -19,7 +20,7 @@ process ENCODE_READS_WITH_BQTOOLS {
     staged_reads=(reads??????/*)
     encode_args=(
         --mode cbq
-        --block-size 128K
+        --block-size ${block_size}
         --level 3
         --threads ${task.cpus}
     )

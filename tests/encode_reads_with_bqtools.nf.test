@@ -15,12 +15,50 @@ nextflow_process {
         then {
             def output = process.out.encodings[0]
             def cbqs = [output[1]].flatten()
+            def info = ['bqtools', 'info', '--json', file(cbqs[0]).toString()].execute()
+            def metadata = new groovy.json.JsonSlurper().parseText(info.text)
             assertAll(
                 { assert process.success },
                 { assert output[0].id == 'single' },
                 { assert cbqs.size() == 1 },
                 { assert file(cbqs[0]).name == 'matching.cbq' },
                 { assert file(cbqs[0]).size() > 0 },
+                { assert info.waitFor() == 0 },
+                { assert metadata[0].block_size == 128 * 1024 },
+            )
+        }
+    }
+
+    test("uses the run-wide block-size override") {
+        setup {
+            def params_file = file("$outputDir/bqtools.yaml")
+            params_file.parentFile.mkdirs()
+            params_file.text = """\
+bqtools:
+  block_size: 1M
+"""
+        }
+
+        when {
+            params {
+                load("$outputDir/bqtools.yaml")
+            }
+            process {
+                """input[0] = [[id: 'single', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/deacon/matching.fastq")]]"""
+            }
+        }
+
+        then {
+            def output = process.out.encodings[0]
+            def cbqs = [output[1]].flatten()
+            assert cbqs.size() == 1
+            def cbq = cbqs[0]
+            def info = ['bqtools', 'info', '--json', file(cbq).toString()].execute()
+            def metadata = new groovy.json.JsonSlurper().parseText(info.text)
+            assertAll(
+                { assert process.success },
+                { assert info.waitFor() == 0 },
+                { assert metadata[0].block_size == 1024 * 1024 },
             )
         }
     }

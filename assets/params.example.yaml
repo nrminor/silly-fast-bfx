@@ -3,6 +3,9 @@
 input: assets/samplesheet.example.csv
 results: results
 
+bqtools:
+  block_size: 128K
+
 skip_deacon: true
 skip_sylph: true
 skip_skope: true
