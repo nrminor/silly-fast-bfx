@@ -69,7 +69,7 @@ workflow SCREEN_READ_SETS {
 
     ch_sylph_routes = sylph_references.flatMap { sample_sketch, reference, database ->
         def sources = (reference.read_sets.input ? ['input'] : []) +
-            reference.read_sets.deacon_filtered.collect { deacon_id -> "deacon:${deacon_id}" }
+            (reference.read_sets.deacon_filtered ?: []).collect { deacon_id -> "deacon:${deacon_id}" }
 
         sources.collect { source -> tuple(source, sample_sketch, reference, database) }
     }
@@ -127,7 +127,7 @@ workflow SCREEN_READ_SETS {
 
     ch_skope_routes = skope_references.flatMap { reference, query_index ->
         def sources = (reference.read_sets.input ? ['input'] : []) +
-            reference.read_sets.deacon_filtered.collect { deacon_id -> "deacon:${deacon_id}" }
+            (reference.read_sets.deacon_filtered ?: []).collect { deacon_id -> "deacon:${deacon_id}" }
 
         sources.collect { source -> tuple(source, reference, query_index) }
     }

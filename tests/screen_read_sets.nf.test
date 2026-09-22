@@ -256,16 +256,16 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a1', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a2', read_sets: [input: false, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a1', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a2', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.empty()
                 input[4] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes.flatMap { build, queryIndex ->
                     [
-                        tuple([id: 'skope-a', read_sets: [input: false, deacon_filtered: ['deacon-a']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
-                        tuple([id: 'skope-b', read_sets: [input: false, deacon_filtered: ['deacon-b']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-a', read_sets: [deacon_filtered: ['deacon-a']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
+                        tuple([id: 'skope-b', read_sets: [deacon_filtered: ['deacon-b']], query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]], queryIndex),
                     ]
                 }
                 """

@@ -26,7 +26,6 @@ sylph:
   references:
     - id: gtdb-r232
       read_sets:
-        input: true
         deacon_filtered: [respiratory]
       database:
         kind: https
@@ -52,7 +51,6 @@ skope:
     - id: respiratory
       read_sets:
         input: true
-        deacon_filtered: [respiratory]
       targets:
         kind: local
         path: /refs/respiratory.fasta

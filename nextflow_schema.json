@@ -115,7 +115,6 @@
     "read_sets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["input", "deacon_filtered"],
       "properties": {
         "input": {
           "type": "boolean",
@@ -130,11 +129,13 @@
       },
       "anyOf": [
         {
+          "required": ["input"],
           "properties": {
             "input": {"const": true}
           }
         },
         {
+          "required": ["deacon_filtered"],
           "properties": {
             "deacon_filtered": {"minItems": 1}
           }

@@ -89,7 +89,7 @@ Reference sources use either an absolute local path (`kind: local`) or an HTTPS 
 | Sylph | `fastas` plus optional `build` settings | `database` |
 | Skope | `targets` plus optional `build` settings | `query_index` |
 
-Every Sylph and Skope reference specification requires `read_sets`. Set `input: true` to search the input read set and list exact Deacon reference IDs under `deacon_filtered` to search those filtered read sets. At least one selection is required. If a selected Deacon ID is unavailable, the pipeline warns and creates no tasks for that selection; an available selection creates downstream work only when filtering retains reads.
+Every Sylph and Skope reference specification requires `read_sets`. Set `input: true` to search the input read set and list exact Deacon reference IDs under `deacon_filtered` to search those filtered read sets. Either property may be omitted when only the other selects read sets; at least one selection is required. If a selected Deacon ID is unavailable, the pipeline warns and creates no tasks for that selection; an available selection creates downstream work only when filtering retains reads.
 
 For a Skope target represented by a FASTA of equal-length k-mers, set these build options on its reference specification:
 

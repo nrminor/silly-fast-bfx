@@ -77,14 +77,14 @@ nextflow_pipeline {
                 ]]]
                 sylph = [references: [[
                     id: "sylph-a",
-                    read_sets: [input: true, deacon_filtered: []],
+                    read_sets: [input: true],
                     database: [kind: "local", path: "${projectDir}/tests/data/sylph/prebuilt.syldb"],
                     sample_sketch: [compression: 50],
                     profile: [minimum_ani: 90, min_count_correct: 3, min_number_kmers: 1],
                 ]]]
                 skope = [references: [[
                     id: "skope-a",
-                    read_sets: [input: true, deacon_filtered: []],
+                    read_sets: [input: true],
                     targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
                     query: [abundance_thresholds: [2, 3, 5], confidence: true],
                 ]]]
@@ -121,7 +121,7 @@ nextflow_pipeline {
         }
     }
 
-    test("search references accept explicit read-set selections") {
+    test("search references accept shorthand read-set selections") {
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
@@ -144,14 +144,14 @@ nextflow_pipeline {
                     references: [[
                         id: "sylph-a",
                         database: [kind: "https", url: "https://example.org/reference.syldb"],
-                        read_sets: [input: false, deacon_filtered: ["deacon-a"]],
+                        read_sets: [deacon_filtered: ["deacon-a"]],
                     ]],
                 ]
                 skope = [
                     references: [[
                         id: "skope-a",
                         query_index: [kind: "https", url: "https://example.org/reference.sk"],
-                        read_sets: [input: true, deacon_filtered: []],
+                        read_sets: [input: true],
                     ]],
                 ]
             }
@@ -162,7 +162,7 @@ nextflow_pipeline {
         }
     }
 
-    test("search references must select at least one read set") {
+    test("search references reject empty read-set selections") {
         when {
             params {
                 input = "/tmp/not-read.csv"
@@ -172,6 +172,27 @@ nextflow_pipeline {
                         id: "sylph-a",
                         database: [kind: "https", url: "https://example.org/reference.syldb"],
                         read_sets: [input: false, deacon_filtered: []],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("read_sets")
+        }
+    }
+
+    test("search references reject omitted read-set selections") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                skip_sylph = true
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        database: [kind: "https", url: "https://example.org/reference.syldb"],
+                        read_sets: [:],
                     ]],
                 ]
             }
