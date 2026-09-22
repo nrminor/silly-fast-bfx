@@ -42,4 +42,20 @@ nextflow_process {
             )
         }
     }
+
+    test("rejects duplicate target basenames through Nextflow staging") {
+        when {
+            process {
+                """input[0] = [[tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'], sources: [[observed_sha256: 'first', logical_basename: 'same.fa'], [observed_sha256: 'second', logical_basename: 'same.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, all_kmers: false, positions: false]], [file("\$baseDir/tests/data/references/same-a/same.fa"), file("\$baseDir/tests/data/references/same-b/same.fa")]]"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('input file name collision') },
+                { assert process.stdout.join('\n').contains('targets/same.fa') },
+            )
+        }
+    }
 }

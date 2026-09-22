@@ -120,10 +120,12 @@ workflow PREPARE_REFERENCES {
         }
     }
 
-    ch_skope_source_uses = channel.fromList(normalized_skope_references).map { reference ->
-        def role = reference.targets ? 'targets' : 'query_index'
-        def source = reference[role]
-        tuple(source.path ?: source.url, 'skope', reference, role, 0, source)
+    ch_skope_source_uses = channel.fromList(normalized_skope_references).flatMap { reference ->
+        reference.targets
+            ? (reference.targets instanceof List ? reference.targets : [reference.targets]).withIndex().collect { source, order ->
+                tuple(source.path ?: source.url, 'skope', reference, 'targets', order, source)
+            }
+            : [tuple(reference.query_index.path ?: reference.query_index.url, 'skope', reference, 'query_index', 0, reference.query_index)]
     }
 
     ch_source_uses = ch_deacon_source_uses
@@ -283,24 +285,38 @@ workflow PREPARE_REFERENCES {
         }
         .filter { reference, sources, artifacts -> !artifacts.isEmpty() }
 
-    ch_skope_sources = ch_reference_sources.skope.map {
-        tool, reference, role, order, source, artifact -> tuple(reference, source, artifact)
+    ch_skope_grouped = ch_reference_sources.skope
+        .map { tool, reference, role, order, source, artifact ->
+            tuple(
+                reference,
+                [role: role, order: order, source: source, artifact: artifact],
+            )
+        }
+        .groupTuple()
+        .map { reference, entries ->
+            tuple(reference, entries.sort { left, right -> left.order <=> right.order })
+        }
+
+    ch_skope_sources = ch_skope_grouped.map { reference, entries ->
+        tuple(reference, entries*.source, entries*.artifact)
     }
 
     ch_skope_build_uses = ch_skope_sources
-        .filter { reference, source, artifact -> reference.targets }
-        .map { reference, source, targets ->
+        .filter { reference, sources, artifacts -> reference.targets }
+        .map { reference, sources, targets ->
             tuple(
                 [
                     tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'],
-                    sources: [[
-                        observed_sha256: source.observed_sha256,
-                        logical_basename: source.logical_basename,
-                    ]],
+                    sources: sources.collect { source ->
+                        [
+                            observed_sha256: source.observed_sha256,
+                            logical_basename: source.logical_basename,
+                        ]
+                    },
                     settings: reference.build,
                 ],
                 reference,
-                targets,
+                targets.size() == 1 ? targets[0] : targets,
             )
         }
 
@@ -316,8 +332,8 @@ workflow PREPARE_REFERENCES {
         .map { build, reference, query_index -> tuple(reference, query_index) }
 
     ch_skope_prebuilt_references = ch_skope_sources
-        .filter { reference, source, artifact -> reference.query_index }
-        .map { reference, source, query_index -> tuple(reference, query_index) }
+        .filter { reference, sources, artifacts -> reference.query_index }
+        .map { reference, sources, query_indexes -> tuple(reference, query_indexes[0]) }
 
     ch_skope_references = ch_skope_prebuilt_references.mix(ch_skope_built_references)
 
@@ -327,8 +343,8 @@ workflow PREPARE_REFERENCES {
     ch_sylph_manifest_jobs = ch_sylph_grouped.map { reference, entries ->
         tuple('sylph', reference, entries*.source)
     }
-    ch_skope_manifest_jobs = ch_skope_sources.map { reference, source, artifact ->
-        tuple('skope', reference, [source])
+    ch_skope_manifest_jobs = ch_skope_sources.map { reference, sources, artifacts ->
+        tuple('skope', reference, sources)
     }
     ch_manifest_jobs = ch_deacon_manifest_jobs
         .mix(ch_sylph_manifest_jobs)

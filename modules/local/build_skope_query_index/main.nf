@@ -2,7 +2,7 @@ process BUILD_SKOPE_QUERY_INDEX {
     tag "k${build.settings.kmer_length}/${build.settings.all_kmers ? 'all-kmers' : 's' + build.settings.smer_length}"
 
     input:
-    tuple val(build), path(targets)
+    tuple val(build), path(targets, stageAs: 'targets/*')
 
     output:
     tuple val(build), path('query_index.sk'), emit: query_indexes
@@ -15,6 +15,7 @@ process BUILD_SKOPE_QUERY_INDEX {
     def selection_arg = build.settings.all_kmers ? '--all-kmers' : "--smer ${build.settings.smer_length}"
     def individual_arg = build.settings.individual ? '--individual' : ''
     def positions_arg = build.settings.positions ? '--positions' : ''
+    def target_arg = targets instanceof List ? 'targets' : targets
     """
     skope index build-query \
         --kmer ${build.settings.kmer_length} \
@@ -24,7 +25,7 @@ process BUILD_SKOPE_QUERY_INDEX {
         ${positions_arg} \
         --threads ${task.cpus} \
         --output query_index.sk \
-        ${targets}
+        ${target_arg}
 
     SKOPE_VERSION="\$(skope --version)"
     cat <<-END_VERSIONS > versions.yml

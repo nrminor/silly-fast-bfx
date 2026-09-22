@@ -87,7 +87,7 @@ Reference sources use either an absolute local path (`kind: local`) or an HTTPS 
 |---|---|---|
 | Deacon | `fasta` plus optional `build` settings | `index` |
 | Sylph | `fastas` plus optional `build` settings | `database` |
-| Skope | `targets` plus optional `build` settings | `query_index` |
+| Skope | one `targets` source or an ordered list plus optional `build` settings | `query_index` |
 
 Every Sylph and Skope reference specification requires `read_sets`. Set `input: true` to search the input read set and list exact Deacon reference IDs under `deacon_filtered` to search those filtered read sets. Either property may be omitted when only the other selects read sets; at least one selection is required. If a selected Deacon ID is unavailable, the pipeline warns and creates no tasks for that selection; an available selection creates downstream work only when filtering retains reads.
 
@@ -102,6 +102,8 @@ build:
 ```
 
 `all_kmers` bypasses syncmer selection and ignores `smer_length`; it defaults to `false`. Fraction sampling still applies, so keep `fraction: 1.0` to retain all canonical k-mers. With `individual: false`, records form one target without concatenating their sequences, and containment is measured over distinct canonical k-mers, not record count. Duplicate k-mers and reverse complements do not add independent evidence. Target grouping remains independent: `individual: true` instead reports each record as a separate target. Selection settings are embedded in the index and automatically used during queries.
+
+`targets` also accepts an ordered nonempty list of source maps. Multiple FASTAs are staged as a directory, so each file remains a separate target named from its filename in the output TSV. Checksum provenance preserves the source basenames. Target filenames must not collide when staged together; Skope also rejects duplicate derived target names. Leave `build.individual` at its default of `false` for a target list; use a single source map with `individual: true` when each FASTA record must remain a separate target.
 
 `skip_deacon`, `skip_sylph`, and `skip_skope` disable all reference specifications for the named tool without requiring their declarations to be removed. Empty `references` lists also create no work for that tool.
 

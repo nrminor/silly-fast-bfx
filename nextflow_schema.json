@@ -562,8 +562,15 @@
           "description": "Skope reference ID used in process tags and results paths."
         },
         "targets": {
-          "$ref": "#/$defs/artifact_source",
-          "description": "Target FASTA or FASTQ source from which the pipeline builds a Skope query index."
+          "oneOf": [
+            {"$ref": "#/$defs/artifact_source"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {"$ref": "#/$defs/artifact_source"}
+            }
+          ],
+          "description": "One target FASTA or FASTQ source, or an ordered nonempty list of target sources from which the pipeline builds a Skope query index. A list produces one target per source file."
         },
         "query_index": {
           "$ref": "#/$defs/artifact_source",
@@ -594,6 +601,28 @@
               {"required": ["targets"]},
               {"required": ["build"]}
             ]
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": ["targets"],
+            "properties": {
+              "targets": {"type": "array"}
+            }
+          },
+          "then": {
+            "properties": {
+              "build": {
+                "not": {
+                  "required": ["individual"],
+                  "properties": {
+                    "individual": {"const": true}
+                  }
+                }
+              }
+            }
           }
         }
       ]

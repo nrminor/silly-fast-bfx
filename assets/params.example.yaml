@@ -52,14 +52,16 @@ skope:
       read_sets:
         input: true
       targets:
-        kind: local
-        path: /refs/respiratory.fasta
+        - kind: local
+          path: /refs/respiratory-a.fasta
+        - kind: local
+          path: /refs/respiratory-b.fasta
       build:
         kmer_length: 31
         smer_length: 9
         all_kmers: false # Set true for a target represented by a collection of k-mers.
         fraction: 1.0
-        individual: false
+        individual: false # Default; target lists do not support per-record grouping.
       query:
         abundance_thresholds: [10]
         confidence: false

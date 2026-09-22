@@ -51,6 +51,31 @@ nextflow_pipeline {
         }
     }
 
+    test("Skope target lists reject per-record grouping") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                skip_skope = true
+                skope = [
+                    references: [[
+                        id: "reference-a",
+                        read_sets: [input: true],
+                        targets: [
+                            [kind: "local", path: "/refs/a.fa"],
+                            [kind: "local", path: "/refs/b.fa"],
+                        ],
+                        build: [individual: true],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stderr.join('\n').contains("individual")
+        }
+    }
+
     test("summarizes configured searches without serializing tool parameters") {
         options '-stub-run'
 
@@ -488,7 +513,7 @@ nextflow_pipeline {
         }
     }
 
-    test("a source-built all-kmer Skope reference reaches input-read screening") {
+    test("a source-built multi-FASTA all-kmer Skope reference reaches input-read screening") {
         setup {
             def samplesheet = file("$outputDir/skope-source.csv")
             samplesheet.parentFile.mkdirs()
@@ -505,24 +530,33 @@ nextflow_pipeline {
         when {
             params {
                 input = "$outputDir/skope-source.csv"
+                results = "$outputDir/skope-results"
                 skope = [
                     references: [[
                         id: "reference-a",
                         read_sets: [input: true, deacon_filtered: []],
-                        targets: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                        targets: [
+                            [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                            [kind: "local", path: "${projectDir}/tests/data/references/second.fa"],
+                        ],
                         build: [all_kmers: true],
-                        query: [abundance_thresholds: [1], confidence: true],
+                        query: [abundance_thresholds: [1, 2], confidence: true],
                     ]],
                 ]
             }
         }
 
         then {
+            def rows = file("$outputDir/skope-results/skope/reference-a/sample-a__input.skope.tsv").readLines()
+            def headers = rows[0].split('\t').toList()
+            def targets = rows.drop(1).collect { line -> line.split('\t')[headers.indexOf('target')] }.toSet()
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('BUILD_SKOPE_QUERY_INDEX') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('QUERY_READS_WITH_SKOPE') } == 1 },
                 { assert workflow.trace.tasks().every { !it.name.contains('ENCODE_READS_WITH_BQTOOLS') } },
+                { assert headers.containsAll(['containment1', 'containment2']) },
+                { assert targets == ['reference', 'second'] as Set },
             )
         }
     }

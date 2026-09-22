@@ -43,7 +43,7 @@ output:
       description: Tuples of normalized Skope reference specifications and prepared query indexes.
   - skope_sources:
       type: file
-      description: Tuples of reference, source metadata with logical_basename and observed_sha256, and artifact.
+      description: Tuples of reference, ordered source metadata with observed checksums, and matching artifacts.
   - checksum_manifests:
       type: file
       description: Tuples of tool, reference specification, and one ordered observed-checksum manifest.

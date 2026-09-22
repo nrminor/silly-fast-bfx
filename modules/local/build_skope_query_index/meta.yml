@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
 name: "build_skope_query_index"
-description: Build a reusable Skope query index using syncmer selection or all canonical k-mers from one target FASTA artifact.
+description: Build a reusable Skope query index using syncmer selection or all canonical k-mers from one target FASTA artifact or an ordered collection of target FASTAs.
 keywords:
   - skope
   - query
@@ -16,7 +16,7 @@ input:
       description: Skope build identity containing the pinned tool, ordered source properties, and normalized settings.
   - targets:
       type: file
-      description: Target FASTA artifact.
+      description: One target FASTA artifact or an ordered collection staged in a directory for Skope directory mode.
 output:
   - query_indexes:
       type: file
