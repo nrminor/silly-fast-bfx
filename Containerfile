@@ -37,6 +37,9 @@ COPY mise.toml mise.lock ./
 RUN curl --fail --silent --show-error --location https://mise.run | \
         MISE_VERSION="v${MISE_VERSION}" sh && \
     mise trust --all && \
+    case "$(uname -m)" in \
+        x86_64) export RUSTFLAGS="-C target-feature=+avx2" ;; \
+    esac && \
     mise install --locked
 
 COPY pyproject.toml pixi.lock uv.lock ./
