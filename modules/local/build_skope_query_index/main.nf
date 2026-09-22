@@ -1,5 +1,5 @@
 process BUILD_SKOPE_QUERY_INDEX {
-    tag "k${build.settings.kmer_length}/s${build.settings.smer_length}"
+    tag "k${build.settings.kmer_length}/${build.settings.all_kmers ? 'all-kmers' : 's' + build.settings.smer_length}"
 
     input:
     tuple val(build), path(targets)
@@ -12,12 +12,13 @@ process BUILD_SKOPE_QUERY_INDEX {
     task.ext.when == null || task.ext.when
 
     script:
+    def selection_arg = build.settings.all_kmers ? '--all-kmers' : "--smer ${build.settings.smer_length}"
     def individual_arg = build.settings.individual ? '--individual' : ''
     def positions_arg = build.settings.positions ? '--positions' : ''
     """
     skope index build-query \
         --kmer ${build.settings.kmer_length} \
-        --smer ${build.settings.smer_length} \
+        ${selection_arg} \
         --fraction ${build.settings.fraction} \
         ${individual_arg} \
         ${positions_arg} \

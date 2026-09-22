@@ -10,7 +10,7 @@ nextflow_process {
             run("BUILD_SKOPE_QUERY_INDEX") {
                 script "../modules/local/build_skope_query_index/main.nf"
                 process {
-                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: true]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                    """input[0] = [[tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, all_kmers: false, positions: true]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
                 }
             }
         }
@@ -46,6 +46,75 @@ nextflow_process {
         }
     }
 
+    test("retains merged k-mer records when built with all_kmers") {
+        setup {
+            def source = 'GATTACAGGCATCCTAGCTAGGACTTGCAACATGCTTAGCCATGGAACTGTCCAGTTACGGATCCTAGGCATTAGCCAGTTCATGGACTTAGCGGATCCTA'
+            def targets = file("$outputDir/merged-kmers.fa")
+            def reads = file("$outputDir/known-kmers.fastq")
+            targets.text = (0..<40).collect { offset ->
+                ">kmer-${offset}\n${source.substring(offset, offset + 31)}"
+            }.join('\n') + '\n'
+            reads.text = "@known-read\n${source.substring(0, 50)}\n+\n${'I' * 50}\n"
+
+            run("BUILD_SKOPE_QUERY_INDEX") {
+                script "../modules/local/build_skope_query_index/main.nf"
+                process {
+                    """
+                    input[0] = Channel.of(true, false).map { allKmers ->
+                        tuple(
+                            [tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'], sources: [[observed_sha256: 'fixture', logical_basename: 'merged-kmers.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, all_kmers: allKmers, positions: false]],
+                            file("$outputDir/merged-kmers.fa"),
+                        )
+                    }
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = BUILD_SKOPE_QUERY_INDEX.out.query_indexes
+                    .map { build, queryIndex ->
+                        tuple(
+                            [id: 'known-kmers', platform: 'illumina', read_set: 'input'],
+                            [id: build.settings.all_kmers ? 'all-kmers' : 'syncmers', query: [fraction: 1.0, abundance_thresholds: [1], discriminatory: false, confidence: false, limit: null]],
+                            [file("$outputDir/known-kmers.fastq")],
+                            queryIndex,
+                        )
+                    }
+                """
+            }
+        }
+
+        then {
+            def results = process.out.results.collectEntries { meta, reference, result ->
+                [(reference.id): file(result)]
+            }
+            def parseSingleRow = { result ->
+                def lines = result.readLines()
+                assert lines.size() == 2
+                def headers = lines[0].split('\t').toList()
+                def values = lines[1].split('\t').toList()
+                assert headers.size() == values.size()
+                [headers, values].transpose().collectEntries { header, value -> [(header): value] }
+            }
+            def allKmers = parseSingleRow(results['all-kmers'])
+            def syncmers = parseSingleRow(results.syncmers)
+            assertAll(
+                { assert process.success },
+                { assert results.keySet() == ['all-kmers', 'syncmers'] as Set },
+                { assert allKmers.target == 'merged-kmers' },
+                { assert allKmers.sample == 'known-kmers__input' },
+                { assert allKmers.target_kmers.toInteger() == 40 },
+                { assert allKmers.containment1.toDouble() == 0.5d },
+                { assert allKmers.sample_seqs.toInteger() == 1 },
+                { assert allKmers.sample_bases.toInteger() == 50 },
+                { assert syncmers.target_kmers.toInteger() * 5 < allKmers.target_kmers.toInteger() },
+            )
+        }
+    }
+
     test("queries several gzip-compressed FASTQs as one sample") {
         setup {
             def readOne = file("$outputDir/r1/reads.fastq.gz")
@@ -67,7 +136,7 @@ nextflow_process {
             run("BUILD_SKOPE_QUERY_INDEX") {
                 script "../modules/local/build_skope_query_index/main.nf"
                 process {
-                    """input[0] = [[tool: [name: 'skope', version: '0.4.0'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
+                    """input[0] = [[tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'], sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, all_kmers: false, positions: false]], file("\$baseDir/tests/data/sylph/reference.fa")]"""
                 }
             }
         }

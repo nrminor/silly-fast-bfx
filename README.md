@@ -91,6 +91,18 @@ Reference sources use either an absolute local path (`kind: local`) or an HTTPS 
 
 Every Sylph and Skope reference specification requires `read_sets`. Set `input: true` to search the input read set and list exact Deacon reference IDs under `deacon_filtered` to search those filtered read sets. At least one selection is required. If a selected Deacon ID is unavailable, the pipeline warns and creates no tasks for that selection; an available selection creates downstream work only when filtering retains reads.
 
+For a Skope target represented by a FASTA of equal-length k-mers, set these build options on its reference specification:
+
+```yaml
+build:
+  kmer_length: 31 # Match the sequence length in the target FASTA.
+  all_kmers: true
+  fraction: 1.0
+  individual: false
+```
+
+`all_kmers` bypasses syncmer selection and ignores `smer_length`; it defaults to `false`. Fraction sampling still applies, so keep `fraction: 1.0` to retain all canonical k-mers. With `individual: false`, records form one target without concatenating their sequences, and containment is measured over distinct canonical k-mers, not record count. Duplicate k-mers and reverse complements do not add independent evidence. Target grouping remains independent: `individual: true` instead reports each record as a separate target. Selection settings are embedded in the index and automatically used during queries.
+
 `skip_deacon`, `skip_sylph`, and `skip_skope` disable all reference specifications for the named tool without requiring their declarations to be removed. Empty `references` lists also create no work for that tool.
 
 ## Containers and Dependencies
@@ -106,6 +118,8 @@ The `docker` and `apptainer` profiles enable their respective runtimes while lea
 | [Sylph](https://github.com/bluenote-1577/sylph) | Builds databases, creates sample sketches, and profiles selected read sets. |
 | [sylph-tax](https://github.com/bluenote-1577/sylph-tax) | Converts meaningful Sylph profiles into taxonomy summaries using explicit metadata. |
 | [Skope](https://github.com/bede/skope) | Builds query indexes and reports target-level containment for selected read sets. |
+
+Skope is built from pinned upstream revision `c016a1fd2441ee16227f9031d636333be35bae74` to support `--all-kmers`, which is not included in release 0.5.0. Rebuild query indexes made with Skope 0.4.0: the upstream serialized header changed. Container runs also require a monoimage rebuilt with this pin; an older image does not gain flag support from pipeline configuration alone.
 
 ## Resources and Site Configuration
 

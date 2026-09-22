@@ -84,23 +84,12 @@ version = "1.97.1"
 backend = "core:rust"
 
 [[tools.skope]]
-version = "0.4.0"
-backend = "github:bede/skope"
+version = "rev:c016a1fd2441ee16227f9031d636333be35bae74"
+backend = "cargo:https://github.com/bede/skope"
 
-[tools.skope."platforms.linux-arm64"]
-checksum = "sha256:1e9bfc103c31d9ff64c92c3eaf4222dd4e67e2e7d5723c2893da58c21f344635"
-url = "https://github.com/bede/skope/releases/download/0.4.0/skope-aarch64-unknown-linux-gnu"
-url_api = "https://api.github.com/repos/bede/skope/releases/assets/470130976"
-
-[tools.skope."platforms.linux-x64"]
-checksum = "sha256:7134db06262782493dfb7e278e6e6e06c182adb650ed63cbc18bc6d0f49da658"
-url = "https://github.com/bede/skope/releases/download/0.4.0/skope-x86_64-unknown-linux-gnu"
-url_api = "https://api.github.com/repos/bede/skope/releases/assets/470130975"
-
-[tools.skope."platforms.macos-arm64"]
-checksum = "sha256:a3a0b81c08917cab7d534d09608b6528202893a2b4a1f7ad31b895264655b404"
-url = "https://github.com/bede/skope/releases/download/0.4.0/skope-aarch64-apple-darwin"
-url_api = "https://api.github.com/repos/bede/skope/releases/assets/470130977"
+[tools.skope.options]
+bin = "skope"
+locked = "true"
 
 [[tools.sylph]]
 version = "tag:v0.9.0"

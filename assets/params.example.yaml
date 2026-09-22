@@ -59,6 +59,9 @@ skope:
       build:
         kmer_length: 31
         smer_length: 9
+        all_kmers: false # Set true for a target represented by a collection of k-mers.
+        fraction: 1.0
+        individual: false
       query:
         abundance_thresholds: [10]
         confidence: false

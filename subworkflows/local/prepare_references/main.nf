@@ -86,6 +86,7 @@ workflow PREPARE_REFERENCES {
             ? [
                 kmer_length: 31,
                 smer_length: 9,
+                all_kmers: false,
                 fraction: 1.0,
                 individual: false,
             ] + (reference.build ?: [:])
@@ -291,7 +292,7 @@ workflow PREPARE_REFERENCES {
         .map { reference, source, targets ->
             tuple(
                 [
-                    tool: [name: 'skope', version: '0.4.0'],
+                    tool: [name: 'skope', version: 'c016a1fd2441ee16227f9031d636333be35bae74'],
                     sources: [[
                         observed_sha256: source.observed_sha256,
                         logical_basename: source.logical_basename,

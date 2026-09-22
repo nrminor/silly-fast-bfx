@@ -487,21 +487,26 @@
           "minimum": 1,
           "maximum": 61,
           "default": 31,
-          "description": "K-mer length for the Skope query index; it must be greater than the S-mer length."
+          "description": "K-mer length for the Skope query index; it must be greater than the S-mer length unless all_kmers is enabled."
         },
         "smer_length": {
           "type": "integer",
           "minimum": 1,
           "maximum": 60,
           "default": 9,
-          "description": "Odd S-mer length used for open-syncmer selection; it must be smaller than the K-mer length."
+          "description": "Odd S-mer length used for open-syncmer selection; it must be smaller than the K-mer length. Ignored when all_kmers is enabled."
+        },
+        "all_kmers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypass syncmer selection and consider every canonical target k-mer. Fraction sampling still applies; individual independently controls target grouping."
         },
         "fraction": {
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1,
           "default": 1.0,
-          "description": "Fraction of target syncmers retained in a source-built query index; smaller values reduce index size and evidence."
+          "description": "Fraction of selected target k-mers retained in a source-built query index; use one to retain all evidence after syncmer or all-kmer selection."
         },
         "individual": {
           "type": "boolean",
@@ -519,19 +524,19 @@
           "exclusiveMinimum": 0,
           "maximum": 1,
           "default": 1.0,
-          "description": "Fraction of target syncmers considered during query, from greater than zero through one; prebuilt query indexes use their embedded fraction instead."
+          "description": "Fraction of selected target k-mers considered during query, from greater than zero through one; prebuilt query indexes use their embedded fraction instead."
         },
         "abundance_thresholds": {
           "type": "array",
           "minItems": 1,
           "items": {"type": "integer", "minimum": 0},
           "default": [10],
-          "description": "Additional syncmer-abundance thresholds for containment estimates; each value adds threshold-specific output columns."
+          "description": "Additional k-mer-abundance thresholds for containment estimates; each value adds threshold-specific output columns."
         },
         "discriminatory": {
           "type": "boolean",
           "default": false,
-          "description": "Consider only syncmers unique to each target when estimating containment."
+          "description": "Consider only selected k-mers unique to each target when estimating containment."
         },
         "confidence": {
           "type": "boolean",

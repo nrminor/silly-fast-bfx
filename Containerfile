@@ -44,7 +44,7 @@ COPY pyproject.toml pixi.lock uv.lock ./
 RUN pixi install --environment default --locked && \
     uv sync --locked --no-dev --no-install-project && \
     mkdir -p /opt/runtime/bin && \
-    cp "$(mise where skope)/skope" /opt/runtime/bin/skope && \
+    cp "$(mise where skope)/bin/skope" /opt/runtime/bin/skope && \
     cp "$(mise where deacon)/deacon" /opt/runtime/bin/deacon && \
     cp "$(mise where sylph)/bin/sylph" /opt/runtime/bin/sylph && \
     cp "$(mise where bqtools)/bin/bqtools" /opt/runtime/bin/bqtools

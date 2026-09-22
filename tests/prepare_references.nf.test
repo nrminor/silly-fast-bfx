@@ -477,7 +477,7 @@ nextflow_workflow {
                     [
                         id: 'shared-explicit',
                         targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
-                        build: [kmer_length: 31, smer_length: 9, fraction: 1.0d, individual: false],
+                        build: [kmer_length: 31, smer_length: 9, fraction: 1.0d, individual: false, all_kmers: false],
                         query: [fraction: 1.0d, abundance_thresholds: [20], discriminatory: true, confidence: false, limit: '1G'],
                     ],
                     [
@@ -494,6 +494,11 @@ nextflow_workflow {
                         targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
                         build: [fraction: 0.5],
                     ],
+                    [
+                        id: 'all-kmers',
+                        targets: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.fa").toAbsolutePath().toString()],
+                        build: [all_kmers: true],
+                    ],
                 ]
                 """
             }
@@ -506,23 +511,25 @@ nextflow_workflow {
             }
             assertAll(
                 { assert workflow.success },
-                { assert workflow.out.skope.size() == 5 },
-                { assert prepared.keySet() == ['shared-defaults', 'shared-explicit', 'confidence', 'renamed', 'different-settings'] as Set },
-                { assert prepared['shared-defaults'].reference.build == [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, positions: false] },
+                { assert workflow.out.skope.size() == 6 },
+                { assert prepared.keySet() == ['shared-defaults', 'shared-explicit', 'confidence', 'renamed', 'different-settings', 'all-kmers'] as Set },
+                { assert prepared['shared-defaults'].reference.build == [kmer_length: 31, smer_length: 9, fraction: 1.0, individual: false, all_kmers: false, positions: false] },
                 { assert prepared['shared-defaults'].reference.query == [fraction: 1.0, abundance_thresholds: [10], discriminatory: false, confidence: false, limit: null] },
                 { assert prepared['shared-explicit'].reference.query.abundance_thresholds == [20] },
                 { assert prepared.confidence.reference.build.positions == true },
                 { assert prepared['shared-defaults'].queryIndex == prepared['shared-explicit'].queryIndex },
                 { assert prepared['different-settings'].reference.build.fraction == 0.5 },
+                { assert prepared['all-kmers'].reference.build.all_kmers == true },
                 {
                     assert [
                         prepared['shared-defaults'].queryIndex,
                         prepared.confidence.queryIndex,
                         prepared.renamed.queryIndex,
                         prepared['different-settings'].queryIndex,
-                    ].toSet().size() == 4
+                        prepared['all-kmers'].queryIndex,
+                    ].toSet().size() == 5
                 },
-                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SKOPE_QUERY_INDEX') } == 4 },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SKOPE_QUERY_INDEX') } == 5 },
             )
         }
     }
