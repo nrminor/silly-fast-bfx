@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "render_mapping_pileups_with_alignoth"
+description: Render self-contained Alignoth HTML pileups for covered selected references.
+keywords:
+  - mapping
+  - pileup
+  - alignoth
+input:
+  - meta:
+      type: map
+      description: Mapped read-set metadata.
+  - reference:
+      type: map
+      description: Mapping reference specification.
+  - fasta:
+      type: file
+      description: Selected mapping-reference FASTA.
+  - bam:
+      type: file
+      description: Coordinate-sorted BAM.
+  - csi:
+      type: file
+      description: CSI index for the BAM.
+  - counts:
+      type: file
+      description: Mapper counts retained with the visualization inputs.
+  - coverage:
+      type: file
+      description: Per-reference mapping coverage comparison TSV.
+  - intervals:
+      type: file
+      description: Coverage interval TSV retained with the visualization inputs.
+  - max_read_depth:
+      type: integer
+      description: Alignoth display-only maximum read depth.
+output:
+  - pileups:
+      type: file
+      description: Tuple of metadata, mapping reference, and a directory of self-contained Alignoth HTML files.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

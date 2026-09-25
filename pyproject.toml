@@ -46,6 +46,7 @@ sylph-tax = "==1.9.1"
 sracha = "==0.5.0"
 minimap2 = "==2.30"
 samtools = "==1.22.1"
+alignoth = "==1.11.0"
 
 [tool.pixi.feature.dev.dependencies]
 nextflow = "==26.04.6"

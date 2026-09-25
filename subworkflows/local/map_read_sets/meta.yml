@@ -9,6 +9,8 @@ components:
   - subset_mapping_reference
   - prepare_mapping_identities
   - map_reads_with_minimap2
+  - summarize_mapping_coverage
+  - render_mapping_pileups_with_alignoth
 input:
   - sylph_profiles:
       type: file
@@ -28,7 +30,13 @@ output:
       description: Compact selection reports.
   - alignments:
       type: file
-      description: Competitive BAM/CSI alignments and distinct-read counts.
+      description: Competitive BAM/CSI alignments, source profiles, selected FASTAs, and mapper counts.
+  - coverage:
+      type: file
+      description: Per-reference coverage comparisons and depth intervals with selected visualization inputs.
+  - pileups:
+      type: file
+      description: Optional self-contained Alignoth HTML pileup directories.
   - "@nrminor"
 maintainers:
   - "@nrminor"

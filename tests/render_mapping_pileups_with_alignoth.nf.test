@@ -1,0 +1,36 @@
+nextflow_process {
+    name "Render mapping pileups with Alignoth"
+    script "../modules/local/render_mapping_pileups_with_alignoth/main.nf"
+    process "RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH"
+    tag "modules"
+    tag "modules_local"
+
+    test("renders self-contained HTML with percent-encoded slash reference artifacts") {
+        setup {
+            def bam = file("$outputDir/coverage.bam")
+            def source = file("$baseDir/tests/data/mapping/coverage.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+            def indexed = ['samtools', 'index', '-c', bam.toString()].execute()
+            assert indexed.waitFor() == 0
+            file("$outputDir/coverage.counts.json").text = '{"total_reads": 4, "mapped_reads": 3, "unmapped_reads": 1}\n'
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input', profile_read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/coverage-reference.fa"), file("$outputDir/coverage.bam"), file("$outputDir/coverage.bam.csi"), file("$outputDir/coverage.counts.json"), file("\$baseDir/tests/data/mapping/coverage.tsv"), file("\$baseDir/tests/data/mapping/coverage.intervals.tsv"), 2]"""
+            }
+        }
+
+        then {
+            def output = process.out.pileups[0]
+            def pileups = file(output[2])
+            assertAll(
+                { assert process.success },
+                { assert file("$pileups/refA.alignoth.html").text.toLowerCase().contains('<html') },
+                { assert file("$pileups/ref%2Fwith%2Fslash.alignoth.html").text.toLowerCase().contains('<html') },
+                { assert !file("$pileups/refZero.alignoth.html").exists() },
+            )
+        }
+    }
+}

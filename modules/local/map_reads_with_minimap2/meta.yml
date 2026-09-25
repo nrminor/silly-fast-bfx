@@ -15,6 +15,9 @@ input:
   - fasta:
       type: file
       description: Selected competitive mapping-reference FASTA.
+  - profile:
+      type: file
+      description: Original Sylph profile that selected this sample-local FASTA.
   - reads:
       type: file
       description: Original FASTQ files streamed directly to the mapper.
@@ -27,7 +30,7 @@ input:
 output:
   - alignments:
       type: file
-      description: Tuple of metadata, mapping reference, coordinate-sorted BAM, CSI index, and distinct-read counts.
+      description: Tuple of metadata, mapping reference, selected FASTA, source Sylph profile, coordinate-sorted BAM, CSI index, and mapper counts.
   - versions:
       type: file
       description: Software versions topic.

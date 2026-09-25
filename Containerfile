@@ -87,6 +87,7 @@ RUN python -c "import Bio, polars, pysam" && \
     sylph --version && \
     bqtools --version && \
     minimap2 --version && \
-    samtools --version
+    samtools --version && \
+    alignoth --version
 
 CMD ["bash"]

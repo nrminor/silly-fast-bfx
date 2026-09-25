@@ -10,6 +10,7 @@ docker run --rm nrminor/silly-fast-bfx:dev bash -euo pipefail -c '
   deacon --version
   sylph --version
   bqtools --version
+  alignoth --version
   for excluded in mise pixi uv cargo nextflow nf-test; do
     ! command -v "$excluded" >/dev/null
   done

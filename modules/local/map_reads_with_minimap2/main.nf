@@ -2,10 +2,10 @@ process MAP_READS_WITH_MINIMAP2 {
     tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
-    tuple val(meta), val(reference), path(fasta), path(reads, stageAs: 'reads??????/*', arity: '1..*'), path(collisions), path(read_count)
+    tuple val(meta), val(reference), path(fasta), path(profile), path(reads, stageAs: 'reads??????/*', arity: '1..*'), path(collisions), path(read_count)
 
     output:
-    tuple val(meta), val(reference), path('*.bam'), path('*.bam.csi'), path('*.counts.json'), emit: alignments
+    tuple val(meta), val(reference), path(fasta), path(profile), path('*.bam'), path('*.bam.csi'), path('*.counts.json'), emit: alignments
     path 'versions.yml', topic: versions
 
     script:

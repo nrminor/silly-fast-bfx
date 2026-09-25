@@ -1,0 +1,48 @@
+nextflow_process {
+    name "Summarize mapping coverage"
+    script "../modules/local/summarize_mapping_coverage/main.nf"
+    process "SUMMARIZE_MAPPING_COVERAGE"
+    tag "modules"
+    tag "modules_local"
+
+    test("reports all and unique-reference coverage while retaining zero-hit references") {
+        setup {
+            def bam = file("$outputDir/coverage.bam")
+            def source = file("$baseDir/tests/data/mapping/coverage.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+            def indexed = ['samtools', 'index', '-c', bam.toString()].execute()
+            assert indexed.waitFor() == 0
+            file("$outputDir/coverage.counts.json").text = '{"total_reads": 4, "mapped_reads": 3, "unmapped_reads": 1}\n'
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input', profile_read_set: 'deacon:selector'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/coverage-reference.fa"), file("\$baseDir/tests/data/mapping/coverage.profile.tsv"), file("$outputDir/coverage.bam"), file("$outputDir/coverage.bam.csi"), file("$outputDir/coverage.counts.json")]"""
+            }
+        }
+
+        then {
+            def output = process.out.coverage[0]
+            def lines = file(output[6]).readLines()
+            def columns = lines[0].split('\t')
+            def rows = lines.drop(1).collectEntries { line ->
+                def values = line.split('\t')
+                [(values[0]): values]
+            }
+            def metrics = { row ->
+                columns.toList().withIndex().collectEntries { column, index -> [(column): row[index]] }
+            }
+            def intervals = file(output[7]).readLines()
+            assertAll(
+                { assert process.success },
+                { assert rows.keySet() == ['refA', 'ref/with/slash', 'refZero'] as Set },
+                { assert rows.refA[5..6] == ['12.50', '99.10'] },
+                { assert metrics(rows.refA).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'breadth', 'mean_depth', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '2', unique_read_count: '1', ambiguous_read_count: '1', breadth: '0.8', mean_depth: '1.2', unique_breadth: '0.5', unique_mean_depth: '0.5'] },
+                { assert metrics(rows['ref/with/slash']).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'breadth', 'mean_depth', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '2', unique_read_count: '1', ambiguous_read_count: '1', breadth: '0.7', mean_depth: '0.8', unique_breadth: '0.4', unique_mean_depth: '0.4'] },
+                { assert metrics(rows.refZero).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '0', unique_read_count: '0', ambiguous_read_count: '0', unique_breadth: '0.0', unique_mean_depth: '0.0'] },
+                { assert intervals.drop(1).every { !it.startsWith('refZero\t') } },
+            )
+        }
+    }
+}

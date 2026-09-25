@@ -24,7 +24,7 @@ nextflow_workflow {
         }
 
         then {
-            def selected = workflow.out.selected.collect { meta, reference, fasta ->
+            def selected = workflow.out.selected.collect { meta, reference, fasta, profile ->
                 "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}".toString()
             } as Set
             assertAll(
@@ -63,8 +63,8 @@ nextflow_workflow {
                 input[0] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/mapping/selection.profile.tsv"), 'true'))
                 input[1] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("\$baseDir/tests/data/mapping/ambiguous.fastq")]))
                 input[2] = channel.of(
-                    tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
-                    tuple([id: 'mapping-b', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
+                    tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]], pileups: [enabled: false]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
+                    tuple([id: 'mapping-b', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]], pileups: [enabled: false]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
                 )
                 """
             }
@@ -75,7 +75,8 @@ nextflow_workflow {
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('PREPARE_MAPPING_IDENTITIES') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('MAP_READS_WITH_MINIMAP2') } == 2 },
-                { assert workflow.out.alignments.collect { meta, reference, bam, csi, counts -> reference.id } as Set == ['mapping-a', 'mapping-b'] as Set },
+                { assert workflow.trace.tasks().every { !it.name.contains('RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH') } },
+                { assert workflow.out.alignments.collect { meta, reference, fasta, profile, bam, csi, counts -> reference.id } as Set == ['mapping-a', 'mapping-b'] as Set },
             )
         }
     }

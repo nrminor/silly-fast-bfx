@@ -1,0 +1,4 @@
+Contig_name	Sequence_abundance	Adjusted_ANI
+refA full header	12.50	99.10
+ref/with/slash full header	7.25	98.20
+refZero full header	0.00	97.00

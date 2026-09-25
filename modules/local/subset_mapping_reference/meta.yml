@@ -22,7 +22,7 @@ input:
 output:
   - selections:
       type: file
-      description: Tuple of metadata, mapping reference specification, selected FASTA, compact selection report, and HAS_SELECTED_RECORDS.
+      description: Tuple of metadata, mapping reference specification, selected FASTA, compact selection report, HAS_SELECTED_RECORDS, and original Sylph profile.
   - versions:
       type: file
       description: Software versions topic.

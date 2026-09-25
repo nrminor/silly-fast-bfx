@@ -5,7 +5,7 @@ process SUBSET_MAPPING_REFERENCE {
     tuple val(meta), val(reference), path(profile), path(fasta)
 
     output:
-    tuple val(meta), val(reference), path('*.selected.fasta'), path('*.selection.tsv'), env('HAS_SELECTED_RECORDS'), emit: selections
+    tuple val(meta), val(reference), path('*.selected.fasta'), path('*.selection.tsv'), env('HAS_SELECTED_RECORDS'), path(profile), emit: selections
     path 'versions.yml', topic: versions
 
     when:

@@ -11,3 +11,4 @@ sracha --help >/dev/null
 "$(mise where bqtools)/bin/bqtools" --version
 minimap2 --version
 samtools --version
+alignoth --version

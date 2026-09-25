@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "summarize_mapping_coverage"
+description: Summarize sample-local BAM coverage and compare it with the selecting Sylph profile.
+keywords:
+  - mapping
+  - coverage
+  - sylph
+input:
+  - meta:
+      type: map
+      description: Mapped read-set metadata including the selection-profile read set.
+  - reference:
+      type: map
+      description: Mapping reference specification.
+  - fasta:
+      type: file
+      description: Selected mapping-reference FASTA with full headers.
+  - profile:
+      type: file
+      description: Original sample-local Sylph profile used for selection.
+  - bam:
+      type: file
+      description: Coordinate-sorted BAM containing all competitive placements.
+  - csi:
+      type: file
+      description: CSI index for the BAM.
+  - counts:
+      type: file
+      description: Mapper-produced actual mapped-read denominator counts.
+output:
+  - coverage:
+      type: file
+      description: Tuple containing inputs retained for visualization, per-reference coverage comparison TSV, and depth interval TSV.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

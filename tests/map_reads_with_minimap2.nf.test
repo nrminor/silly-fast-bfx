@@ -23,6 +23,7 @@ nextflow_process {
                         meta,
                         [id: 'mapping-a', align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]],
                         file("\$baseDir/tests/data/mapping/ambiguous-reference.fa"),
+                        file("\$baseDir/tests/data/mapping/selection.profile.tsv"),
                         reads,
                         collisions,
                         readCount,
@@ -34,12 +35,12 @@ nextflow_process {
 
         then {
             def output = process.out.alignments[0]
-            def records = ['samtools', 'view', file(output[2]).toString()].execute().text.readLines()
+            def records = ['samtools', 'view', file(output[4]).toString()].execute().text.readLines()
             def flags = records.collect { line -> line.split('\t')[1].toInteger() }
             assertAll(
                 { assert process.success },
-                { assert file(output[3]).exists() },
-                { assert file(output[4]).text == '{"total_reads": 2, "mapped_reads": 2, "unmapped_reads": 0}\n' },
+                { assert file(output[5]).exists() },
+                { assert file(output[6]).text == '{"total_reads": 2, "mapped_reads": 2, "unmapped_reads": 0}\n' },
                 { assert records.size() >= 4 },
                 { assert records.collect { line -> line.split('\t')[0] } as Set == ['same/1', 'same/2'] as Set },
                 { assert flags.any { flag -> (flag & 256) != 0 } },
