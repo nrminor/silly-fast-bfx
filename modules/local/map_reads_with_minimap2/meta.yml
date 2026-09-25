@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "map_reads_with_minimap2"
+description: Competitively map independently streamed read records with minimap2.
+keywords:
+  - minimap2
+  - samtools
+  - mapping
+input:
+  - meta:
+      type: map
+      description: Metadata for the read set being mapped, including its platform and selection-profile source.
+  - reference:
+      type: map
+      description: Mapping reference specification and platform-specific mapper settings.
+  - fasta:
+      type: file
+      description: Selected competitive mapping-reference FASTA.
+  - reads:
+      type: file
+      description: Original FASTQ files streamed directly to the mapper.
+  - collisions:
+      type: file
+      description: Ordered metadata-only mapper-name substitutions.
+  - read_count:
+      type: file
+      description: Total read-record count for the mapped read set.
+output:
+  - alignments:
+      type: file
+      description: Tuple of metadata, mapping reference, coordinate-sorted BAM, CSI index, and distinct-read counts.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

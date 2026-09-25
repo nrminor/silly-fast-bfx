@@ -164,6 +164,8 @@ workflow SCREEN_READ_SETS {
     emit:
     deacon = FILTER_READS_WITH_DEACON.out.reads
     filtered_reads = ch_filtered_reads
+    read_sets = ch_read_sets_by_source
+        .map { source, meta, reads -> tuple(meta, reads) }
     sylph = PROFILE_READS_WITH_SYLPH.out.profiles
     sylph_profiles = ch_sylph_profiles
     sylph_taxonomy = SUMMARIZE_SYLPH_TAXONOMY.out.taxonomy_profiles

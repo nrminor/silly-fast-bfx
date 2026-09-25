@@ -4,7 +4,7 @@ include { UTILS_NFSCHEMA_PLUGIN } from './subworkflows/nf-core/utils_nfschema_pl
 include { GATHER_INPUT_READS    } from './subworkflows/local/gather_input_reads'
 include { PREPARE_REFERENCES    } from './subworkflows/local/prepare_references'
 include { SCREEN_READ_SETS      } from './subworkflows/local/screen_read_sets'
-include { SELECT_MAPPING_REFERENCES } from './subworkflows/local/select_mapping_references'
+include { MAP_READ_SETS      } from './subworkflows/local/map_read_sets'
 include { validate              } from 'plugin/nf-schema'
 
 def describeReadSets(read_sets) {
@@ -173,8 +173,9 @@ workflow {
         PREPARE_REFERENCES.out.skope,
     )
 
-    SELECT_MAPPING_REFERENCES(
+    MAP_READ_SETS(
         SCREEN_READ_SETS.out.sylph,
+        SCREEN_READ_SETS.out.read_sets,
         PREPARE_REFERENCES.out.mapping,
     )
 

@@ -1,11 +1,11 @@
 nextflow_workflow {
-    name "Select mapping references"
-    script "../subworkflows/local/select_mapping_references/main.nf"
-    workflow "SELECT_MAPPING_REFERENCES"
+    name "Map read sets"
+    script "../subworkflows/local/map_read_sets/main.nf"
+    workflow "MAP_READ_SETS"
     tag "subworkflows"
     tag "subworkflows_local"
 
-    test("routes input and filtered profiles by sample without cross-sample selection") {
+    test("routes profile selection by sample without cross-sample mapping") {
         when {
             workflow {
                 """
@@ -14,10 +14,11 @@ nextflow_workflow {
                     tuple([id: 'sample-b', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), 'true'),
                     tuple([id: 'sample-a', read_set: 'deacon_filtered', deacon_id: 'host'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), 'true'),
                 )
-                input[1] = channel.of(
-                    tuple([id: 'mapping-input', profile: [reference: 'sylph-a', read_set: [input: true]], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
-                    tuple([id: 'mapping-filtered', profile: [reference: 'sylph-a', read_set: [deacon_filtered: 'host']], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
-                )
+                 input[1] = channel.empty()
+                 input[2] = channel.of(
+                    tuple([id: 'mapping-input', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
+                    tuple([id: 'mapping-filtered', profile: [reference: 'sylph-a', read_set: [deacon_filtered: 'host']], read_sets: [input: true], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
+                 )
                 """
             }
         }
@@ -39,7 +40,8 @@ nextflow_workflow {
             workflow {
                 """
                 input[0] = channel.of(tuple([id: 'sample-a', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection-token.profile.tsv"), 'true'))
-                input[1] = channel.of(tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")))
+                 input[1] = channel.empty()
+                 input[2] = channel.of(tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")))
                 """
             }
         }
@@ -50,6 +52,30 @@ nextflow_workflow {
                 { assert workflow.out.reports.size() == 1 },
                 { assert workflow.out.selected.isEmpty() },
                 { assert workflow.stdout.join('\n').contains('WARN: No mapping reference records selected') },
+            )
+        }
+    }
+
+    test("reuses one mapped read set across mapping specifications for its sample") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/mapping/selection.profile.tsv"), 'true'))
+                input[1] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("\$baseDir/tests/data/mapping/ambiguous.fastq")]))
+                input[2] = channel.of(
+                    tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
+                    tuple([id: 'mapping-b', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
+                )
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('PREPARE_MAPPING_IDENTITIES') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('MAP_READS_WITH_MINIMAP2') } == 2 },
+                { assert workflow.out.alignments.collect { meta, reference, bam, csi, counts -> reference.id } as Set == ['mapping-a', 'mapping-b'] as Set },
             )
         }
     }

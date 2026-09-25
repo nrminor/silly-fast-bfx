@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "biopython==1.87",
   "polars==1.43.2",
+  "pysam==0.23.3",
 ]
 
 [dependency-groups]
@@ -43,6 +44,8 @@ requires-pixi = ">=0.77.1,<0.78"
 python = "3.12.*"
 sylph-tax = "==1.9.1"
 sracha = "==0.5.0"
+minimap2 = "==2.30"
+samtools = "==1.22.1"
 
 [tool.pixi.feature.dev.dependencies]
 nextflow = "==26.04.6"

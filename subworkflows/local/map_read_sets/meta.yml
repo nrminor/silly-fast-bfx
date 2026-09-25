@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "map_read_sets"
+description: Select competitive FASTA records from Sylph profiles and map selected read sets.
+keywords:
+  - mapping
+  - minimap2
+  - sylph
+components:
+  - subset_mapping_reference
+  - prepare_mapping_identities
+  - map_reads_with_minimap2
+input:
+  - sylph_profiles:
+      type: file
+      description: Per-sample Sylph profiles, including profiles with no rows.
+  - read_sets:
+      type: file
+      description: Input and meaningful Deacon-filtered FASTQ read sets.
+  - mapping_references:
+      type: file
+      description: Prepared mapping reference specifications and explicit FASTAs.
+output:
+  - selected:
+      type: file
+      description: Selected FASTA records with selection-profile metadata.
+  - reports:
+      type: file
+      description: Compact selection reports.
+  - alignments:
+      type: file
+      description: Competitive BAM/CSI alignments and distinct-read counts.
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

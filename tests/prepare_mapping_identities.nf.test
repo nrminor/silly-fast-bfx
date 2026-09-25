@@ -1,0 +1,42 @@
+nextflow_process {
+    name "Prepare mapping identities"
+    script "../modules/local/prepare_mapping_identities/main.nf"
+    process "PREPARE_MAPPING_IDENTITIES"
+    tag "modules"
+    tag "modules_local"
+
+    test("indexes same-basename lanes while suffixing colliding explicit mates") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("\$baseDir/tests/data/mapping/lanes/r1/reads.fastq"), file("\$baseDir/tests/data/mapping/lanes/r2/reads.fastq")]]"""
+            }
+        }
+
+        then {
+            def output = process.out.identities[0]
+            assertAll(
+                { assert process.success },
+                { assert output[4] == 'true' },
+                { assert output[1].collect { file(it).parent.tokenize('/').last() } == ['reads000001', 'reads000002'] },
+                { assert file(output[2]).text == 'ordinal\tmapped_name\n0\tsame/1\n1\tsame/2\n' },
+                { assert file(output[3]).text == '2\n' },
+                { assert !file("${outputDir}/payload.parquet").exists() },
+            )
+        }
+    }
+
+    test("rejects duplicate QNAMEs without explicit mate metadata") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/fastq/mapping-unresolved.fastq")]]"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('Unresolved mapping QNAME collision') },
+            )
+        }
+    }
+}

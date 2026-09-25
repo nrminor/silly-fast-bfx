@@ -747,7 +747,7 @@
     "mapping_align": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Defaults for the future competitive minimap2 mapping stage; this selection-only release does not execute alignment.",
+      "description": "Competitive minimap2 mapping settings. Primary, secondary, supplementary, and unmapped records are retained in the BAM.",
       "properties": {
         "ont": {
           "allOf": [
@@ -768,7 +768,7 @@
     "mapping_pileups": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Defaults for future pileup publication; this selection-only release does not create pileups.",
+      "description": "Reserved pileup publication settings; this mapping release does not create pileups.",
       "properties": {
         "enabled": {"type": "boolean", "default": true, "description": "Default true; controls future visualization only, not alignment production or quantitative coverage and counts."},
         "max_read_depth": {"type": "integer", "minimum": 1, "default": 500, "description": "Default 500; display subsampling cap only. Never apply it to BAM evidence, coverage, counts, or Parquet."}
@@ -777,7 +777,7 @@
     "mapping_read_store": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Defaults for future aligned-read Parquet publication; this selection-only release does not create a read store.",
+      "description": "Reserved aligned-read Parquet publication settings; this mapping release does not create a read store.",
       "properties": {
         "enabled": {"type": "boolean", "default": true, "description": "Default true; publish one future self-contained Parquet table with one row per reported alignment and repeated original read payload. Unaligned sequences are omitted, but their counts remain available."},
         "reference_allowlist": {"oneOf": [{"$ref": "#/$defs/artifact_source"}, {"type": "null"}], "default": null, "description": "Optional text artifact of exact full reference names. Any matching placement includes the read with all its competitive placements; it has no effect on BAMs, mapping, coverage, or denominators."}
@@ -793,9 +793,9 @@
         "fasta": {"$ref": "#/$defs/artifact_source", "description": "One local or HTTPS candidate FASTA following existing source conventions. It is explicit, never implicitly taken from Sylph; retained Contig_name values match complete record headers exactly."},
         "select": {"$ref": "#/$defs/mapping_select", "default": {"sequence_abundance": {"min": null, "max": null}, "adjusted_ani": {"min": null, "max": null}}, "description": "Inclusive Sylph profile filters applied before exact-header FASTA subsetting."},
         "read_sets": {"$ref": "#/$defs/read_sets", "description": "Mapping input choices, independent of the profiling read set. Input and/or named filtered sets are allowed; each later produces separate outputs with its own denominator."},
-        "align": {"$ref": "#/$defs/mapping_align", "description": "Future competitive-alignment settings, documented here but not executed by this selection-only release."},
-        "pileups": {"$ref": "#/$defs/mapping_pileups", "default": {"enabled": true, "max_read_depth": 500}, "description": "Future pileup settings, documented here but not executed by this selection-only release."},
-        "read_store": {"$ref": "#/$defs/mapping_read_store", "default": {"enabled": true, "reference_allowlist": null}, "description": "Future aligned-read store settings, documented here but not executed by this selection-only release."}
+        "align": {"$ref": "#/$defs/mapping_align", "description": "Competitive minimap2 alignment settings for independently mapped read records."},
+        "pileups": {"$ref": "#/$defs/mapping_pileups", "default": {"enabled": true, "max_read_depth": 500}, "description": "Reserved pileup settings; pileup publication is not implemented in this mapping release."},
+        "read_store": {"$ref": "#/$defs/mapping_read_store", "default": {"enabled": true, "reference_allowlist": null}, "description": "Reserved aligned-read store settings; Parquet publication is not implemented in this mapping release."}
       }
     },
     "mapping_configuration": {

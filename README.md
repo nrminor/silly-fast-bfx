@@ -9,7 +9,7 @@ The pipeline begins with one input read set per samplesheet row. It can then run
 1. **Deacon** builds or accepts a minimizer index and filters every input read set. Each Deacon reference specification produces a distinct filtered read set for each sample.
 2. **Sylph** sketches selected read sets, profiles each sample sketch against a source-built or prebuilt database, and optionally applies configured taxonomy metadata to meaningful profiles.
 3. **Skope** queries selected read sets against a source-built or prebuilt query index and reports one row per target.
-4. **Mapping reference selection** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA. It publishes the selected FASTA and compact selection report; competitive mapping, BAMs, pileups, coverage, and the read store are future stages.
+4. **Mapping** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA, then competitively maps independently streamed selected read sets with minimap2. It publishes the selected FASTA, compact selection report, coordinate-sorted BAM/CSI, and distinct-read counts. Pileups, coverage, and the aligned-read Parquet store are later stages.
 
 Read-set routing is explicit for every Sylph and Skope reference specification. Its `read_sets` block selects the input read set, named Deacon-filtered read sets, or both. The pipeline does not implicitly send every filtered read set to every search. Empty Deacon FASTQs are retained in the results bundle for inspection, but empty filtered read sets are not routed to Sylph or Skope.
 
@@ -51,7 +51,10 @@ results/
 ├── skope/<reference-id>/<sample-id>__<read-set>.skope.tsv
 └── mapping/<reference-id>/<sample-id>/
     ├── <sample-id>__<profile-read-set>.selected.fasta
-    └── <sample-id>__<profile-read-set>.selection.tsv
+    ├── <sample-id>__<profile-read-set>.selection.tsv
+    ├── <sample-id>__<read-set>__<reference-id>.bam
+    ├── <sample-id>__<read-set>__<reference-id>.bam.csi
+    └── <sample-id>__<read-set>__<reference-id>.counts.json
 ```
 
 `pipeline_info/` preserves the submitted samplesheet, records workflow and tool versions, and contains Nextflow execution reports. Each `source.sha256` records the observed SHA-256 digest and basename of every source used by that reference specification, including Sylph taxonomy metadata when supplied.
@@ -112,6 +115,8 @@ build:
 `skip_deacon`, `skip_sylph`, `skip_skope`, and `skip_mapping` disable all reference specifications for the named path without requiring their declarations to be removed. Empty `references` lists also create no work. `skip_mapping` leaves independently configured Sylph profiling enabled.
 
 Mapping reference selection uses one explicit `mapping.references` entry per configuration. Its `profile` names exactly one Sylph reference specification and one profile read set; its `fasta` is the sole candidate FASTA. Optional inclusive `select.sequence_abundance` and `select.adjusted_ani` bounds combine with AND. Retained Sylph `Contig_name` values match the complete FASTA record header exactly, never `Genome_file` or a whitespace-delimited token. A profile with no qualifying rows, or whose qualifying names all miss the FASTA, creates no future mapping task; a partial match fails rather than silently removing competitors.
+
+Mapping maps the independently selected `read_sets` against each selected FASTA with minimap2 2.30 and samtools 1.22.1. Illumina uses `-x sr --frag=no --secondary=yes`; ONT uses its configured preset with independent records and secondary reporting. BAMs retain primary, secondary, supplementary, and unmapped records. Counts use one primary mapped alignment per enforced-unique mapper QNAME, so they report distinct total, mapped, and unmapped read records rather than alignment rows. Original FASTQs remain mapping inputs; this release does not create a pre-mapping sequence store, extract FASTQ from BAM, or publish Parquet.
 
 ## Containers and Dependencies
 

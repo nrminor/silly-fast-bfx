@@ -2,10 +2,12 @@
 #MISE description="Verify Python and standalone runtime tools"
 set -euo pipefail
 
-uv run --locked --no-dev python -c "import Bio, polars"
+uv run --locked --no-dev python -c "import Bio, polars, pysam"
 sylph-tax --help >/dev/null
 sracha --help >/dev/null
 "$(mise where skope)/bin/skope" --version
 "$(mise where deacon)/deacon" --version
 "$(mise where sylph)/bin/sylph" --version
 "$(mise where bqtools)/bin/bqtools" --version
+minimap2 --version
+samtools --version

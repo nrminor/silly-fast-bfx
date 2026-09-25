@@ -79,12 +79,14 @@ COPY --from=builder /opt/silly-fast-bfx/.venv ./.venv
 COPY --from=builder /opt/silly-fast-bfx/.pixi/envs/default ./.pixi/envs/default
 COPY --from=builder /opt/runtime/bin/ /usr/local/bin/
 
-RUN python -c "import Bio, polars" && \
+RUN python -c "import Bio, polars, pysam" && \
     sylph-tax --help >/dev/null && \
     sracha --help >/dev/null && \
     skope --version && \
     deacon --version && \
     sylph --version && \
-    bqtools --version
+    bqtools --version && \
+    minimap2 --version && \
+    samtools --version
 
 CMD ["bash"]
