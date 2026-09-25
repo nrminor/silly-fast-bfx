@@ -3,12 +3,14 @@ include { PREPARE_MAPPING_IDENTITIES } from '../../../modules/local/prepare_mapp
 include { MAP_READS_WITH_MINIMAP2 } from '../../../modules/local/map_reads_with_minimap2'
 include { SUMMARIZE_MAPPING_COVERAGE } from '../../../modules/local/summarize_mapping_coverage'
 include { RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH } from '../../../modules/local/render_mapping_pileups_with_alignoth'
+include { STORE_CLASSIFIED_READS } from '../../../modules/local/store_classified_reads'
 
 workflow MAP_READ_SETS {
     take:
     sylph_profiles
     read_sets
     mapping_references
+    mapping_allowlists
 
     main:
     ch_profiles_by_source = sylph_profiles.map { meta, sylph_reference, profile, has_profile_rows ->
@@ -80,6 +82,26 @@ workflow MAP_READ_SETS {
 
     SUMMARIZE_MAPPING_COVERAGE(MAP_READS_WITH_MINIMAP2.out.alignments)
 
+    ch_read_store_sources = MAP_READS_WITH_MINIMAP2.out.read_store_sources
+        .filter { meta, reference, fasta, bam, reads, collisions -> reference.read_store?.enabled != false }
+    ch_unrestricted_read_store_jobs = ch_read_store_sources
+        .filter { meta, reference, fasta, bam, reads, collisions -> !reference.read_store?.reference_allowlist }
+        .map { meta, reference, fasta, bam, reads, collisions ->
+            tuple(meta, reference, fasta, bam, reads, collisions, [])
+        }
+    ch_allowed_read_store_jobs = ch_read_store_sources
+        .filter { meta, reference, fasta, bam, reads, collisions -> reference.read_store?.reference_allowlist }
+        .map { meta, reference, fasta, bam, reads, collisions ->
+            tuple(reference.id, meta, reference, fasta, bam, reads, collisions)
+        }
+        .combine(mapping_allowlists, by: 0)
+        .map { reference_id, meta, reference, fasta, bam, reads, collisions, allowlist ->
+            tuple(meta, reference, fasta, bam, reads, collisions, allowlist)
+        }
+
+    ch_read_store_jobs = ch_unrestricted_read_store_jobs.mix(ch_allowed_read_store_jobs)
+    STORE_CLASSIFIED_READS(ch_read_store_jobs)
+
     ch_pileup_jobs = SUMMARIZE_MAPPING_COVERAGE.out.coverage
         .filter { meta, reference, fasta, bam, csi, counts, coverage, intervals -> reference.pileups?.enabled != false }
         .map { meta, reference, fasta, bam, csi, counts, coverage, intervals ->
@@ -105,4 +127,5 @@ workflow MAP_READ_SETS {
     alignments = MAP_READS_WITH_MINIMAP2.out.alignments
     coverage = SUMMARIZE_MAPPING_COVERAGE.out.coverage
     pileups = RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH.out.pileups
+    classified_reads = STORE_CLASSIFIED_READS.out.stores
 }

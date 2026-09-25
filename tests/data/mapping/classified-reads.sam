@@ -1,0 +1,11 @@
+@HD	VN:1.6	SO:coordinate
+@SQ	SN:refA	LN:12
+@SQ	SN:refB	LN:12
+@SQ	SN:refC	LN:12
+read-a	0	refA	1	60	6M	*	0	0	ACGTTA	ABCDEF	AS:i:6
+read-a	272	refB	2	55	2H4M	*	0	0	TGCA	FEDC	AS:i:4
+read-b	0	refB	1	60	6M	*	0	0	GGGGGG	123456	AS:i:6
+read-c	0	refC	1	60	6M	*	0	0	AAAAAA	654321	AS:i:6
+read-c	256	refB	2	50	6M	*	0	0	AAAAAA	654321	AS:i:5
+same/1	0	refA	3	50	6M	*	0	0	TTTTTT	!!!!!!	AS:i:6
+same/2	256	refA	4	45	6M	*	0	0	CCCCCC	######	AS:i:5

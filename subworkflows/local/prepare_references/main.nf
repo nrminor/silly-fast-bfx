@@ -145,9 +145,15 @@ workflow PREPARE_REFERENCES {
             : [tuple(reference.query_index.path ?: reference.query_index.url, 'skope', reference, 'query_index', 0, reference.query_index)]
     }
 
-    ch_mapping_source_uses = channel.fromList(normalized_mapping_references).map { reference ->
-        def source = reference.fasta
-        tuple(source.path ?: source.url, 'mapping', reference, 'fasta', 0, source)
+    ch_mapping_source_uses = channel.fromList(normalized_mapping_references).flatMap { reference ->
+        def fasta = reference.fasta
+        def allowlist = reference.read_store.enabled && reference.read_store.reference_allowlist
+            ? [reference.read_store.reference_allowlist]
+            : []
+        [tuple(fasta.path ?: fasta.url, 'mapping', reference, 'fasta', 0, fasta)] +
+            allowlist.collect { source ->
+                tuple(source.path ?: source.url, 'mapping', reference, 'reference_allowlist', 1, source)
+            }
     }
 
     ch_source_uses = ch_deacon_source_uses
@@ -325,9 +331,12 @@ workflow PREPARE_REFERENCES {
         tuple(reference, entries*.source, entries*.artifact)
     }
 
-    ch_mapping_sources = ch_reference_sources.mapping.map { tool, reference, role, order, source, artifact ->
-        tuple(reference, source, artifact)
-    }
+    ch_mapping_sources = ch_reference_sources.mapping
+        .filter { tool, reference, role, order, source, artifact -> role == 'fasta' }
+        .map { tool, reference, role, order, source, artifact -> tuple(reference, source, artifact) }
+    ch_mapping_allowlists = ch_reference_sources.mapping
+        .filter { tool, reference, role, order, source, artifact -> role == 'reference_allowlist' }
+        .map { tool, reference, role, order, source, artifact -> tuple(reference.id, artifact) }
 
     ch_skope_build_uses = ch_skope_sources
         .filter { reference, sources, artifacts -> reference.targets }
@@ -374,9 +383,12 @@ workflow PREPARE_REFERENCES {
     ch_skope_manifest_jobs = ch_skope_sources.map { reference, sources, artifacts ->
         tuple('skope', reference, sources)
     }
-    ch_mapping_manifest_jobs = ch_mapping_sources.map { reference, source, artifact ->
-        tuple('mapping', reference, [source])
-    }
+    ch_mapping_manifest_jobs = ch_reference_sources.mapping
+        .map { tool, reference, role, order, source, artifact -> tuple(reference, [order: order, source: source]) }
+        .groupTuple()
+        .map { reference, entries ->
+            tuple('mapping', reference, entries.sort { left, right -> left.order <=> right.order }*.source)
+        }
     ch_manifest_jobs = ch_deacon_manifest_jobs
         .mix(ch_sylph_manifest_jobs)
         .mix(ch_skope_manifest_jobs)
@@ -393,5 +405,6 @@ workflow PREPARE_REFERENCES {
     skope = ch_skope_references
     skope_sources = ch_skope_sources
     mapping = ch_mapping_sources.map { reference, source, artifact -> tuple(reference, artifact) }
+    mapping_allowlists = ch_mapping_allowlists
     checksum_manifests = RECORD_REFERENCE_CHECKSUMS.out.manifests
 }

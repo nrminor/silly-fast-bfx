@@ -50,3 +50,7 @@
 # Tests
 !/tests/
 !/tests/**
+
+# Python interpreter artifacts
+__pycache__/
+*.py[cod]

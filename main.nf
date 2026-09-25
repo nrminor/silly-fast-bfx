@@ -177,6 +177,7 @@ workflow {
         SCREEN_READ_SETS.out.sylph,
         SCREEN_READ_SETS.out.read_sets,
         PREPARE_REFERENCES.out.mapping,
+        PREPARE_REFERENCES.out.mapping_allowlists,
     )
 
     ch_workflow_version = channel.of("""

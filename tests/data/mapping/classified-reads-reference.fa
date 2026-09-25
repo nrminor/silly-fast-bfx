@@ -1,0 +1,6 @@
+>refA exact reference label
+ACGTTACGTTAC
+>refB other reference label
+GGGGGGCCCCCC
+>refC comma,"quoted" label
+AAAAAACCCCCC

@@ -6,6 +6,7 @@ process MAP_READS_WITH_MINIMAP2 {
 
     output:
     tuple val(meta), val(reference), path(fasta), path(profile), path('*.bam'), path('*.bam.csi'), path('*.counts.json'), emit: alignments
+    tuple val(meta), val(reference), path(fasta), path('*.bam'), path(reads), path(collisions), emit: read_store_sources
     path 'versions.yml', topic: versions
 
     script:

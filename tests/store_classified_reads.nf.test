@@ -1,0 +1,154 @@
+nextflow_process {
+    name "Store classified reads"
+    script "../modules/local/store_classified_reads/main.nf"
+    process "STORE_CLASSIFIED_READS"
+    tag "modules"
+    tag "modules_local"
+
+    test("retains original payload and all placements for reads selected by exact reference name") {
+        setup {
+            def bam = file("$outputDir/classified-reads.bam")
+            def source = file("$baseDir/tests/data/mapping/classified-reads.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads.allowlist.txt")]"""
+            }
+        }
+
+        then {
+            def output = process.out.stores[0]
+            def query = '''
+import json
+import polars as pl
+table = pl.read_parquet(r"''' + file(output[2]) + '''")
+retrieved = (
+    pl.scan_parquet(r"''' + file(output[2]) + '''")
+    .filter(pl.col("reference_name") == "refB other reference label")
+    .select("read_key", "sequence")
+    .collect()
+)
+print(json.dumps({
+    "schema": {name: str(dtype) for name, dtype in table.schema.items()},
+    "keys": table.get_column("read_key").to_list(),
+    "references": table.get_column("reference_name").to_list(),
+    "read_a": table.filter(pl.col("read_key") == "read-a").to_dicts(),
+    "retrieved": retrieved.to_dicts(),
+}))
+'''
+            def result = ['uv', 'run', 'python', '-c', query].execute().text.trim()
+            def store = new groovy.json.JsonSlurper().parseText(result)
+            assertAll(
+                { assert process.success },
+                { assert store.keys.toSet() == ['read-a', 'same/1', 'same/2'] as Set },
+                { assert store.references.toSet() == ['refA exact reference label', 'refB other reference label'] as Set },
+                { assert store.read_a.size() == 2 },
+                { assert store.read_a.every { it.original_header == 'read-a\toriginal comment' && it.sequence == 'ACGTTA' && it.quality == 'ABCDEF' && it.plus_line == 'original plus content' } },
+                { assert "@${store.read_a[0].original_header}\n${store.read_a[0].sequence}\n+${store.read_a[0].plus_line}\n${store.read_a[0].quality}\n" == '@read-a\toriginal comment\nACGTTA\n+original plus content\nABCDEF\n' },
+                { assert store.read_a.any { it.strand == '-' && it.cigar == '2H4M' && it.alignment_score == 4 } },
+                { assert store.schema.alignment_score == 'Int64' },
+                { assert store.retrieved == [[read_key: 'read-a', sequence: 'ACGTTA']] },
+            )
+        }
+    }
+
+    test("writes a typed empty table when no allowlisted reference is reported") {
+        setup {
+            def bam = file("$outputDir/classified-reads-empty.bam")
+            def source = file("$baseDir/tests/data/mapping/classified-reads.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads-empty.allowlist.txt")]"""
+            }
+        }
+
+        then {
+            def output = process.out.stores[0]
+            def result = ['uv', 'run', 'python', '-c', "import polars as pl; table = pl.read_parquet(r'${file(output[2])}'); print(f'{table.height}:{table.schema[\"reference_name\"]}')"].execute().text.trim()
+            assertAll(
+                { assert process.success },
+                { assert result == '0:String' },
+            )
+        }
+    }
+
+    test("writes a typed empty table for an empty allowlist") {
+        setup {
+            def bam = file("$outputDir/classified-reads-empty-file.bam")
+            def source = file("$baseDir/tests/data/mapping/classified-reads.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+            file("$outputDir/empty.allowlist.txt").text = ''
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty-file.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("$outputDir/empty.allowlist.txt")]"""
+            }
+        }
+
+        then {
+            def output = process.out.stores[0]
+            def result = ['uv', 'run', 'python', '-c', "import polars as pl; print(pl.read_parquet(r'${file(output[2])}').height)"].execute().text.trim()
+            assertAll(
+                { assert process.success },
+                { assert result == '0' },
+            )
+        }
+    }
+
+    test("matches punctuation in an exact allowlist name without discarding competing placements") {
+        setup {
+            def bam = file("$outputDir/classified-reads-punctuation.bam")
+            def source = file("$baseDir/tests/data/mapping/classified-reads.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-punctuation.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads-punctuation.allowlist.txt")]"""
+            }
+        }
+
+        then {
+            def output = process.out.stores[0]
+            def result = ['uv', 'run', 'python', '-c', "import polars as pl; table = pl.read_parquet(r'${file(output[2])}'); print(table.select('read_key', 'reference_name').to_dicts())"].execute().text.trim()
+            assertAll(
+                { assert process.success },
+                { assert result == "[{'read_key': 'read-c', 'reference_name': 'refB other reference label'}, {'read_key': 'read-c', 'reference_name': 'refC comma,\"quoted\" label'}]" },
+            )
+        }
+    }
+
+    test("accepts an empty optional allowlist path collection") {
+        setup {
+            def bam = file("$outputDir/classified-reads-unrestricted.bam")
+            def source = file("$baseDir/tests/data/mapping/classified-reads.sam")
+            def converted = ['samtools', 'view', '-b', '-o', bam.toString(), source.toString()].execute()
+            assert converted.waitFor() == 0
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-unrestricted.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), []]"""
+            }
+        }
+
+        then {
+            def output = process.out.stores[0]
+            def result = ['uv', 'run', 'python', '-c', "import polars as pl; print('read-b' in pl.read_parquet(r'${file(output[2])}').get_column('read_key').to_list())"].execute().text.trim()
+            assertAll(
+                { assert process.success },
+                { assert result == 'True' },
+            )
+        }
+    }
+}

@@ -4,4 +4,4 @@ set -euo pipefail
 
 uv run --locked ruff check bin
 uv run --locked ruff format --check bin
-uv run --locked ty check --error-on-warning bin
+uv run --locked ty check --error-on-warning --extra-search-path bin bin

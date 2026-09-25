@@ -9,7 +9,7 @@ The pipeline begins with one input read set per samplesheet row. It can then run
 1. **Deacon** builds or accepts a minimizer index and filters every input read set. Each Deacon reference specification produces a distinct filtered read set for each sample.
 2. **Sylph** sketches selected read sets, profiles each sample sketch against a source-built or prebuilt database, and optionally applies configured taxonomy metadata to meaningful profiles.
 3. **Skope** queries selected read sets against a source-built or prebuilt query index and reports one row per target.
-4. **Mapping** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA, then competitively maps independently streamed selected read sets with minimap2. It publishes the selected FASTA, compact selection report, coordinate-sorted BAM/CSI, mapper counts, per-reference coverage/Sylph comparisons, depth intervals, and optional Alignoth pileups. The aligned-read Parquet store remains a later stage.
+4. **Mapping** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA, then competitively maps independently streamed selected read sets with minimap2. It publishes the selected FASTA, compact selection report, coordinate-sorted BAM/CSI, mapper counts, per-reference coverage/Sylph comparisons, depth intervals, optional Alignoth pileups, and a post-alignment classified-read Parquet table.
 
 Read-set routing is explicit for every Sylph and Skope reference specification. Its `read_sets` block selects the input read set, named Deacon-filtered read sets, or both. The pipeline does not implicitly send every filtered read set to every search. Empty Deacon FASTQs are retained in the results bundle for inspection, but empty filtered read sets are not routed to Sylph or Skope.
 
@@ -54,7 +54,8 @@ results/
     ├── <sample-id>__<profile-read-set>.selection.tsv
     ├── <sample-id>__<read-set>__<reference-id>.bam
     ├── <sample-id>__<read-set>__<reference-id>.bam.csi
-    └── <sample-id>__<read-set>__<reference-id>.counts.json
+    ├── <sample-id>__<read-set>__<reference-id>.counts.json
+    └── <sample-id>__<read-set>__<reference-id>.classified-reads.parquet
 ```
 
 `pipeline_info/` preserves the submitted samplesheet, records workflow and tool versions, and contains Nextflow execution reports. Each `source.sha256` records the observed SHA-256 digest and basename of every source used by that reference specification, including Sylph taxonomy metadata when supplied.
@@ -116,7 +117,23 @@ build:
 
 Mapping reference selection uses one explicit `mapping.references` entry per configuration. Its `profile` names exactly one Sylph reference specification and one profile read set; its `fasta` is the sole candidate FASTA. Optional inclusive `select.sequence_abundance` and `select.adjusted_ani` bounds combine with AND. Retained Sylph `Contig_name` values match the complete FASTA record header exactly, never `Genome_file` or a whitespace-delimited token. A profile with no qualifying rows, or whose qualifying names all miss the FASTA, creates no future mapping task; a partial match fails rather than silently removing competitors.
 
-Mapping maps the independently selected `read_sets` against each selected FASTA with minimap2 2.30 and samtools 1.22.1. Illumina uses `-x sr --frag=no --secondary=yes`; ONT uses its configured preset with independent records and secondary reporting. BAMs retain primary, secondary, supplementary, and unmapped records. Counts use one primary mapped alignment per enforced-unique mapper QNAME, so they report distinct total, mapped, and unmapped read records rather than alignment rows. Original FASTQs remain mapping inputs; this release does not create a pre-mapping sequence store, extract FASTQ from BAM, or publish Parquet.
+Mapping maps the independently selected `read_sets` against each selected FASTA with minimap2 2.30 and samtools 1.22.1. Illumina uses `-x sr --frag=no --secondary=yes`; ONT uses its configured preset with independent records and secondary reporting. BAMs retain primary, secondary, supplementary, and unmapped records. Counts use one primary mapped alignment per enforced-unique mapper QNAME, so they report distinct total, mapped, and unmapped read records rather than alignment rows.
+
+When `read_store.enabled` is true, mapping also publishes `<sample>__<read-set>__<reference>.classified-reads.parquet`. Classified reads associate original read payloads with named references by reported mapping placements. The table has one row per reported mapped BAM alignment, repeats the original mapped-read-set FASTQ header, sequence, quality, and plus-line content in original orientation, and includes the BAM flags, coordinates, CIGAR, MAPQ, available alignment score, mapper QNAME/read key, sample, mapped read set, mapping reference specification, BAM reference ID, and exact selected FASTA full header. It preserves ambiguous placements and makes no taxonomy or exclusive-assignment claim. It is sorted by exact `reference_name` then `read_key` with Zstandard compression and Parquet statistics so filtering a reference retrieves sequences and all placement evidence directly. This is produced only after BAM alignment; the pipeline creates no pre-mapping payload Parquet, does not map from Parquet, and does not export FASTQ at runtime.
+
+`read_store.reference_allowlist` is an optional local or HTTPS text artifact with one exact full reference name per line. It is acquired and checksum-verified through the normal reference-source path. If any reported placement for a read names an allowlisted reference, every reported placement for that read remains in the Parquet; unknown names produce a valid empty typed table. It never changes reference selection, BAMs, coverage, counts, or denominators.
+
+```yaml
+mapping:
+  references:
+    - id: example-mapping
+      # profile, fasta, select, read_sets, align, and pileups are configured here.
+      read_store:
+        enabled: true
+        reference_allowlist:
+          kind: local
+          path: /refs/references-of-interest.txt
+```
 
 ## Containers and Dependencies
 

@@ -768,18 +768,18 @@
     "mapping_pileups": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Alignoth pileup publication settings; these control visualization only, never BAM evidence, coverage, counts, or future aligned-read tables.",
+      "description": "Alignoth pileup publication settings; these control visualization only, never BAM evidence, coverage, counts, or future classified-read tables.",
       "properties": {
         "enabled": {"type": "boolean", "default": true, "description": "Default true; publish Alignoth HTML for selected references with mapped support. This never changes alignment production or quantitative coverage and counts."},
-        "max_read_depth": {"type": "integer", "minimum": 1, "default": 500, "description": "Default 500; Alignoth display row cap only. Never apply it to BAM evidence, coverage, counts, or future aligned-read tables."}
+        "max_read_depth": {"type": "integer", "minimum": 1, "default": 500, "description": "Default 500; Alignoth display row cap only. Never apply it to BAM evidence, coverage, counts, or future classified-read tables."}
       }
     },
     "mapping_read_store": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Reserved aligned-read Parquet publication settings; this mapping release does not create a read store.",
+      "description": "Classified-read Parquet publication settings. The table is produced after BAM alignment for rapid exact-reference sequence retrieval, not as a mapper input or archival read store.",
       "properties": {
-        "enabled": {"type": "boolean", "default": true, "description": "Default true; publish one future self-contained Parquet table with one row per reported alignment and repeated original read payload. Unaligned sequences are omitted, but their counts remain available."},
+        "enabled": {"type": "boolean", "default": true, "description": "Default true; publish one self-contained classified-read Parquet table with one row per reported alignment and repeated original read payload. Unaligned sequences are omitted, but their counts remain available."},
         "reference_allowlist": {"oneOf": [{"$ref": "#/$defs/artifact_source"}, {"type": "null"}], "default": null, "description": "Optional text artifact of exact full reference names. Any matching placement includes the read with all its competitive placements; it has no effect on BAMs, mapping, coverage, or denominators."}
       }
     },
@@ -795,7 +795,7 @@
         "read_sets": {"$ref": "#/$defs/read_sets", "description": "Mapping input choices, independent of the profiling read set. Input and/or named filtered sets are allowed; each later produces separate outputs with its own denominator."},
         "align": {"$ref": "#/$defs/mapping_align", "description": "Competitive minimap2 alignment settings for independently mapped read records."},
         "pileups": {"$ref": "#/$defs/mapping_pileups", "default": {"enabled": true, "max_read_depth": 500}, "description": "Per-reference Alignoth pileup publication settings. Display limits never affect quantitative mapping evidence."},
-        "read_store": {"$ref": "#/$defs/mapping_read_store", "default": {"enabled": true, "reference_allowlist": null}, "description": "Reserved aligned-read store settings; Parquet publication is not implemented in this mapping release."}
+        "read_store": {"$ref": "#/$defs/mapping_read_store", "default": {"enabled": true, "reference_allowlist": null}, "description": "Post-alignment classified-read Parquet publication settings for rapid exact-reference sequence retrieval."}
       }
     },
     "mapping_configuration": {

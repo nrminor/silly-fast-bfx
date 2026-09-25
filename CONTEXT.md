@@ -26,6 +26,10 @@ _Avoid_: read set, read format stage
 A Sylph sketch derived from one read set for reuse across one or more Sylph reference specifications. It is neither a read set nor a lossless read encoding.
 _Avoid_: reference sketch, read set
 
+**Classified reads**:
+Original read payloads associated with named references by reported mapping placements. They preserve ambiguous placements and make no taxonomy or exclusive-assignment claim.
+_Avoid_: aligned reads, taxonomic assignments
+
 **Results bundle**:
 The curated user-facing output of one pipeline execution. It presents summaries first and progressively discloses per-sample, per-tool, per-reference, and provenance artifacts without exposing incidental work files.
 _Avoid_: output directory, work directory, results dump

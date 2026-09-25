@@ -671,4 +671,34 @@ nextflow_workflow {
         }
     }
 
+    test("acquires and records a configured classified-read allowlist separately from the mapping FASTA") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = []
+                input[2] = []
+                input[3] = [[
+                    id: 'mapping-a',
+                    profile: [reference: 'sylph-a', read_set: [input: true]],
+                    fasta: [kind: 'local', path: file("\$baseDir/tests/data/mapping/classified-reads-reference.fa").toAbsolutePath().toString()],
+                    read_sets: [input: true],
+                    read_store: [reference_allowlist: [kind: 'local', path: file("\$baseDir/tests/data/mapping/classified-reads.allowlist.txt").toAbsolutePath().toString()]],
+                ]]
+                """
+            }
+        }
+
+        then {
+            def manifest = file(workflow.out.checksum_manifests[0][2]).readLines()
+            assertAll(
+                { assert workflow.success },
+                { assert file(workflow.out.mapping[0][1]).name == 'classified-reads-reference.fa' },
+                { assert workflow.out.mapping_allowlists[0][0] == 'mapping-a' },
+                { assert file(workflow.out.mapping_allowlists[0][1]).name == 'classified-reads.allowlist.txt' },
+                { assert manifest.size() == 2 },
+            )
+        }
+    }
+
 }

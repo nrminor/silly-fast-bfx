@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "store_classified_reads"
+description: Store original read payloads associated with named references by reported mapping placements as lookup-oriented Parquet.
+keywords:
+  - mapping
+  - parquet
+  - classified-reads
+input:
+  - meta:
+      type: map
+      description: Mapped read-set metadata including sample and read-set attribution.
+  - reference:
+      type: map
+      description: Mapping reference specification controlling final classified-read storage.
+  - fasta:
+      type: file
+      description: Selected FASTA used to associate BAM target IDs with exact full reference names.
+  - bam:
+      type: file
+      description: Coordinate-sorted BAM containing reported primary, secondary, and supplementary alignments.
+  - reads:
+      type: file
+      description: Original actual-mapped-read-set FASTQs, streamed only after BAM production.
+  - collisions:
+      type: file
+      description: Sparse ordinal-to-mapper-name substitutions from mapping identity preparation.
+  - allowlist:
+      type: file
+      description: Optional zero-or-one path collection containing an exact full-reference-name allowlist for read-level existential inclusion.
+output:
+  - stores:
+      type: file
+      description: Flat Zstandard Parquet with one row per reported mapped alignment and repeated original read payload, preserving ambiguity.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"
