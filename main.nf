@@ -4,6 +4,7 @@ include { UTILS_NFSCHEMA_PLUGIN } from './subworkflows/nf-core/utils_nfschema_pl
 include { GATHER_INPUT_READS    } from './subworkflows/local/gather_input_reads'
 include { PREPARE_REFERENCES    } from './subworkflows/local/prepare_references'
 include { SCREEN_READ_SETS      } from './subworkflows/local/screen_read_sets'
+include { SELECT_MAPPING_REFERENCES } from './subworkflows/local/select_mapping_references'
 include { validate              } from 'plugin/nf-schema'
 
 def describeReadSets(read_sets) {
@@ -25,6 +26,31 @@ def formatReference(reference, fields, colors) {
     }
 }
 
+def profileReadSetSource(read_set) {
+    read_set.input ? 'input' : "deacon:${read_set.deacon_filtered}"
+}
+
+def validateMappingReferences(mapping_references, sylph_references) {
+    mapping_references.each { mapping_reference ->
+        def profile_reference = sylph_references.find { it.id == mapping_reference.profile.reference }
+        if (!profile_reference) {
+            error "Mapping reference '${mapping_reference.id}' selects unknown Sylph reference '${mapping_reference.profile.reference}'."
+        }
+        def profile_source = profileReadSetSource(mapping_reference.profile.read_set)
+        def available_sources = (profile_reference.read_sets.input ? ['input'] : []) +
+            (profile_reference.read_sets.deacon_filtered ?: []).collect { deacon_id -> "deacon:${deacon_id}" }
+        if (!available_sources.contains(profile_source)) {
+            error "Mapping reference '${mapping_reference.id}' selects ${profile_source}, which Sylph reference '${profile_reference.id}' does not profile."
+        }
+        ['sequence_abundance', 'adjusted_ani'].each { column ->
+            def bounds = mapping_reference.select?.get(column) ?: [:]
+            if (bounds.min != null && bounds.max != null && bounds.min > bounds.max) {
+                error "Mapping reference '${mapping_reference.id}' has ${column}.min greater than ${column}.max."
+            }
+        }
+    }
+}
+
 workflow {
     main:
     if (params.version) {
@@ -34,17 +60,24 @@ workflow {
 
     parameters_schema = "${projectDir}/nextflow_schema.json"
 
+    if (params.validate_params && !params.help && !params.help_full) {
+        validate(params, parameters_schema)
+    }
+
     deacon_references = params.get('deacon')?.references ?: []
     sylph_references = params.get('sylph')?.references ?: []
     skope_references = params.get('skope')?.references ?: []
+    mapping_references = params.get('mapping')?.references ?: []
 
     deacon_enabled = !params.skip_deacon && !deacon_references.isEmpty()
     sylph_enabled = !params.skip_sylph && !sylph_references.isEmpty()
     skope_enabled = !params.skip_skope && !skope_references.isEmpty()
+    mapping_enabled = !params.skip_mapping && !mapping_references.isEmpty()
 
     active_deacon_references = deacon_references.findAll { deacon_enabled }
     active_sylph_references = sylph_references.findAll { sylph_enabled }
     active_skope_references = skope_references.findAll { skope_enabled }
+    active_mapping_references = mapping_references.findAll { mapping_enabled }
 
     ansi_enabled = workflow.session.ansiLog &&
         !workflow.session.config.navigate('validation.monochromeLogs')
@@ -79,10 +112,18 @@ workflow {
         ], colors)
     }.flatten()
 
+    mapping_summary = active_mapping_references.collect { reference ->
+        formatReference(reference, [
+            'selection profile': "${reference.profile.reference} (${profileReadSetSource(reference.profile.read_set)})",
+            'mapping read sets': describeReadSets(reference.read_sets),
+        ], colors)
+    }.flatten()
+
     search_summary = [
         active_deacon_references ? ["${colors.bold}Deacon searches${colors.reset}"] + deacon_summary + [''] : [],
         active_sylph_references ? ["${colors.bold}Sylph searches${colors.reset}"] + sylph_summary + [''] : [],
         active_skope_references ? ["${colors.bold}Skope searches${colors.reset}"] + skope_summary + [''] : [],
+        active_mapping_references ? ["${colors.bold}Mapping reference selection${colors.reset}"] + mapping_summary + [''] : [],
     ].flatten()
 
     pipeline_name = workflow.manifest.name.tokenize('/').last()
@@ -109,8 +150,8 @@ workflow {
         false,
     )
 
-    if (params.validate_params) {
-        validate(params, parameters_schema)
+    if (mapping_enabled && !params.help && !params.help_full) {
+        validateMappingReferences(active_mapping_references, active_sylph_references)
     }
 
     ch_versions = channel.topic('versions')
@@ -121,6 +162,7 @@ workflow {
         active_deacon_references,
         active_sylph_references,
         active_skope_references,
+        active_mapping_references,
     )
 
     SCREEN_READ_SETS(
@@ -129,6 +171,11 @@ workflow {
         PREPARE_REFERENCES.out.sylph,
         PREPARE_REFERENCES.out.sylph_taxonomy,
         PREPARE_REFERENCES.out.skope,
+    )
+
+    SELECT_MAPPING_REFERENCES(
+        SCREEN_READ_SETS.out.sylph,
+        PREPARE_REFERENCES.out.mapping,
     )
 
     ch_workflow_version = channel.of("""

@@ -1,14 +1,15 @@
 # nrminor/silly-fast-bfx
 
-`nrminor/silly-fast-bfx` is an nf-core-style Nextflow pipeline for comparing rapid metagenomic searches across samples, read sets, reference specifications, and three screening tools: Deacon, Sylph, and Skope.
+`nrminor/silly-fast-bfx` is an nf-core-style Nextflow pipeline for comparing rapid metagenomic searches across samples, read sets, and tool-specific reference specifications.
 
 ## Overview
 
-The pipeline begins with one input read set per samplesheet row. It can then run three paths:
+The pipeline begins with one input read set per samplesheet row. It can then run four paths:
 
 1. **Deacon** builds or accepts a minimizer index and filters every input read set. Each Deacon reference specification produces a distinct filtered read set for each sample.
 2. **Sylph** sketches selected read sets, profiles each sample sketch against a source-built or prebuilt database, and optionally applies configured taxonomy metadata to meaningful profiles.
 3. **Skope** queries selected read sets against a source-built or prebuilt query index and reports one row per target.
+4. **Mapping reference selection** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA. It publishes the selected FASTA and compact selection report; competitive mapping, BAMs, pileups, coverage, and the read store are future stages.
 
 Read-set routing is explicit for every Sylph and Skope reference specification. Its `read_sets` block selects the input read set, named Deacon-filtered read sets, or both. The pipeline does not implicitly send every filtered read set to every search. Empty Deacon FASTQs are retained in the results bundle for inspection, but empty filtered read sets are not routed to Sylph or Skope.
 
@@ -47,12 +48,15 @@ results/
 ├── sylph/
 │   ├── profiles/<reference-id>/<sample-id>__<read-set>.profile.tsv
 │   └── taxonomy/<reference-id>/<sample-id>__<read-set>.sylphmpa
-└── skope/<reference-id>/<sample-id>__<read-set>.skope.tsv
+├── skope/<reference-id>/<sample-id>__<read-set>.skope.tsv
+└── mapping/<reference-id>/<sample-id>/
+    ├── <sample-id>__<profile-read-set>.selected.fasta
+    └── <sample-id>__<profile-read-set>.selection.tsv
 ```
 
 `pipeline_info/` preserves the submitted samplesheet, records workflow and tool versions, and contains Nextflow execution reports. Each `source.sha256` records the observed SHA-256 digest and basename of every source used by that reference specification, including Sylph taxonomy metadata when supplied.
 
-Deacon publishes its official JSON summary and one retained FASTQ for every sample/reference combination. This includes official summaries and valid empty FASTQs when no records pass. Sylph publishes raw profiles even when they contain only the header; taxonomy output is emitted only when the profile has data rows and the reference specification includes taxonomy metadata. Skope TSVs contain target-level rows and never include a `TOTAL` row. In filenames, `<read-set>` is `input` or `deacon-<deacon-id>`.
+Deacon publishes its official JSON summary and one retained FASTQ for every sample/reference combination. This includes official summaries and valid empty FASTQs when no records pass. Sylph publishes raw profiles even when they contain only the header; taxonomy output is emitted only when the profile has data rows and the reference specification includes taxonomy metadata. Skope TSVs contain target-level rows and never include a `TOTAL` row. Mapping selection reports distinguish filtered-out, resolved, and unresolved `Contig_name` values; a selection has no mapping successor unless it resolves records. In filenames, `<read-set>` is `input` or `deacon-<deacon-id>`.
 
 Built indexes and databases, sample sketches, CBQ read encodings, and downloaded input FASTQs remain Nextflow work artifacts rather than published results.
 
@@ -105,7 +109,9 @@ build:
 
 `targets` also accepts an ordered nonempty list of source maps. Multiple FASTAs are staged as a directory, so each file remains a separate target named from its filename in the output TSV. Checksum provenance preserves the source basenames. Target filenames must not collide when staged together; Skope also rejects duplicate derived target names. Leave `build.individual` at its default of `false` for a target list; use a single source map with `individual: true` when each FASTA record must remain a separate target.
 
-`skip_deacon`, `skip_sylph`, and `skip_skope` disable all reference specifications for the named tool without requiring their declarations to be removed. Empty `references` lists also create no work for that tool.
+`skip_deacon`, `skip_sylph`, `skip_skope`, and `skip_mapping` disable all reference specifications for the named path without requiring their declarations to be removed. Empty `references` lists also create no work. `skip_mapping` leaves independently configured Sylph profiling enabled.
+
+Mapping reference selection uses one explicit `mapping.references` entry per configuration. Its `profile` names exactly one Sylph reference specification and one profile read set; its `fasta` is the sole candidate FASTA. Optional inclusive `select.sequence_abundance` and `select.adjusted_ani` bounds combine with AND. Retained Sylph `Contig_name` values match the complete FASTA record header exactly, never `Genome_file` or a whitespace-delimited token. A profile with no qualifying rows, or whose qualifying names all miss the FASTA, creates no future mapping task; a partial match fails rather than silently removing competitors.
 
 ## Containers and Dependencies
 

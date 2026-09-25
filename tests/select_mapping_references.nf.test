@@ -1,0 +1,56 @@
+nextflow_workflow {
+    name "Select mapping references"
+    script "../subworkflows/local/select_mapping_references/main.nf"
+    workflow "SELECT_MAPPING_REFERENCES"
+    tag "subworkflows"
+    tag "subworkflows_local"
+
+    test("routes input and filtered profiles by sample without cross-sample selection") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    tuple([id: 'sample-a', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), 'true'),
+                    tuple([id: 'sample-b', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), 'true'),
+                    tuple([id: 'sample-a', read_set: 'deacon_filtered', deacon_id: 'host'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), 'true'),
+                )
+                input[1] = channel.of(
+                    tuple([id: 'mapping-input', profile: [reference: 'sylph-a', read_set: [input: true]], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
+                    tuple([id: 'mapping-filtered', profile: [reference: 'sylph-a', read_set: [deacon_filtered: 'host']], select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")),
+                )
+                """
+            }
+        }
+
+        then {
+            def selected = workflow.out.selected.collect { meta, reference, fasta ->
+                "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}".toString()
+            } as Set
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('SUBSET_MAPPING_REFERENCE') } == 3 },
+                { assert selected == ['sample-a:input:-:mapping-input', 'sample-b:input:-:mapping-input', 'sample-a:deacon_filtered:host:mapping-filtered'] as Set },
+            )
+        }
+    }
+
+    test("publishes an empty-selection report but emits no selected reference") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(tuple([id: 'sample-a', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/sylph/selection-token.profile.tsv"), 'true'))
+                input[1] = channel.of(tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-reference.fa")))
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.reports.size() == 1 },
+                { assert workflow.out.selected.isEmpty() },
+                { assert workflow.stdout.join('\n').contains('WARN: No mapping reference records selected') },
+            )
+        }
+    }
+}

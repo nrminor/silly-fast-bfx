@@ -9,6 +9,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [
                     [
                         id: 'sensitive',
@@ -47,6 +48,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [
                     [
                         id: 'default-build',
@@ -77,6 +79,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [
                     [
                         id: 'original',
@@ -110,6 +113,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [[
                     id: 'prebuilt',
                     index: [kind: 'local', path: file("\$baseDir/tests/data/deacon/reference.k31w15.idx").toAbsolutePath().toString()],
@@ -137,6 +141,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [[
                     id: 'deacon-a',
                     index: [kind: 'local', path: file("\$baseDir/tests/data/references/shared.fa").toAbsolutePath().toString(), sha256: '083f71e8c14889f31e81a4fd426d5ab2472da653b23067f7e8e05dcc62e2c497'],
@@ -180,6 +185,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [[
                     id: 'query-one',
                     index: [kind: 'https', url: 'https://fixtures.invalid/reference/shared.fa?mirror=one'],
@@ -209,6 +215,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [[
                     id: 'deacon-remote',
                     index: [
@@ -247,6 +254,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = [[
                     id: 'ordered',
@@ -292,6 +300,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = [
                     [
                         id: 'matching',
@@ -326,6 +335,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = [
                     [
@@ -393,6 +403,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = [[
                     id: 'incompatible',
@@ -416,6 +427,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = [[
                     id: 'incompatible',
@@ -439,6 +451,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = [[
                     id: 'prebuilt',
@@ -467,6 +480,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = []
                 input[2] = [
@@ -538,6 +552,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = []
                 input[2] = [
@@ -601,6 +616,7 @@ nextflow_workflow {
         when {
             workflow {
                 """
+                input[3] = []
                 input[0] = []
                 input[1] = []
                 input[2] = [[
@@ -621,6 +637,36 @@ nextflow_workflow {
                 { assert !prepared[0].containsKey('build') },
                 { assert file(prepared[1]).name == 'reference.k31w15.idx' },
                 { assert workflow.trace.tasks().count { it.name.contains('PREPARE_REFERENCES:BUILD_SKOPE_QUERY_INDEX') } == 0 },
+            )
+        }
+    }
+
+    test("preserves sibling defaults for partial mapping selection and alignment settings") {
+        when {
+            workflow {
+                """
+                input[0] = []
+                input[1] = []
+                input[2] = []
+                input[3] = [[
+                    id: 'mapping-a',
+                    profile: [reference: 'sylph-a', read_set: [input: true]],
+                    fasta: [kind: 'local', path: file("\$baseDir/tests/data/sylph/selection-reference.fa").toAbsolutePath().toString()],
+                    read_sets: [input: true],
+                    select: [sequence_abundance: [min: 1.0]],
+                    align: [ont: [max_secondary: 2], illumina: [secondary_score_ratio: 0.7]],
+                ]]
+                """
+            }
+        }
+
+        then {
+            def prepared = workflow.out.mapping[0]
+            assertAll(
+                { assert workflow.success },
+                { assert prepared[0].select == [sequence_abundance: [min: 1.0, max: null], adjusted_ani: [min: null, max: null]] },
+                { assert prepared[0].align.ont == [preset: 'map-ont', max_secondary: 2, secondary_score_ratio: 0.8] },
+                { assert prepared[0].align.illumina == [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.7] },
             )
         }
     }

@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "select_mapping_references"
+keywords:
+  - mapping
+  - sylph
+  - reference
+components:
+  - subset_mapping_reference
+input:
+  - sylph_profiles:
+      type: file
+      description: Raw Sylph profiles for each sample, reference specification, and profiling read set.
+  - mapping_references:
+      type: file
+      description: Normalized mapping reference specifications paired with their acquired explicit FASTAs.
+output:
+  - selected:
+      type: file
+      description: Per-sample selected FASTAs with one or more resolved records; the future mapping branch consumes only these tuples.
+  - reports:
+      type: file
+      description: Compact per-sample selection reports, including empty selections.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

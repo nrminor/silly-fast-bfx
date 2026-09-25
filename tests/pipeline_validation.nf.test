@@ -31,6 +31,30 @@ nextflow_pipeline {
         }
     }
 
+    test("malformed mapping configuration is rejected before cross-reference validation") {
+        when {
+            params {
+                input = "/tmp/not-read.csv"
+                mapping = [
+                    references: [[
+                        id: "mapping-a",
+                        profile: [reference: "sylph-a"],
+                        fasta: [kind: "local", path: "/refs/mapping.fa"],
+                        read_sets: [input: true],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert workflow.stderr.join('\n').contains("read_set") },
+                { assert !workflow.stderr.join('\n').contains("unknown Sylph reference") },
+            )
+        }
+    }
+
     test("malformed nested artifact sources are rejected") {
         when {
             params {
@@ -737,6 +761,106 @@ nextflow_pipeline {
                 { assert workflow.trace.tasks().every { !it.name.contains('DOWNLOAD_REFERENCE') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('BUILD_SKOPE_QUERY_INDEX') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('QUERY_READS_WITH_SKOPE') } },
+            )
+        }
+    }
+
+    test("skip_mapping leaves configured Sylph profiling untouched and acquires no mapping FASTA") {
+        setup {
+            def samplesheet = file("$outputDir/skip-mapping.csv")
+            samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,$reads,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/skip-mapping.csv"
+                skip_mapping = true
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        read_sets: [input: true, deacon_filtered: []],
+                        fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                        build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                        sample_sketch: [kmer_length: 31, compression: 2],
+                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                    ]],
+                ]
+                mapping = [
+                    references: [[
+                        id: "mapping-a",
+                        profile: [reference: "sylph-a", read_set: [input: true]],
+                        fasta: [kind: "https", url: "https://fixtures.invalid/mapping.fa"],
+                        read_sets: [input: true],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('BUILD_SYLPH_DATABASE') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 1 },
+                { assert workflow.trace.tasks().every { !it.name.contains('SUBSET_MAPPING_REFERENCE') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('DOWNLOAD_REFERENCE') } },
+            )
+        }
+    }
+
+    test("publishes a per-sample selected mapping FASTA and compact report") {
+        setup {
+            def samplesheet = file("$outputDir/mapping-selection.csv")
+            samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,$reads,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/mapping-selection.csv"
+                results = "$outputDir/results"
+                sylph = [
+                    references: [[
+                        id: "sylph-a",
+                        read_sets: [input: true, deacon_filtered: []],
+                        fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                        build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                        sample_sketch: [kmer_length: 31, compression: 2],
+                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                    ]],
+                ]
+                mapping = [
+                    references: [[
+                        id: "mapping-a",
+                        profile: [reference: "sylph-a", read_set: [input: true]],
+                        fasta: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                        read_sets: [input: true],
+                    ]],
+                ]
+            }
+        }
+
+        then {
+            def selection_dir = file("$outputDir/results/mapping/mapping-a/sample-a")
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('SUBSET_MAPPING_REFERENCE') } == 1 },
+                { assert file("$selection_dir/sample-a__input.selected.fasta").text.startsWith('>synthetic-reference') },
+                { assert file("$selection_dir/sample-a__input.selection.tsv").text.contains('synthetic-reference\tresolved') },
             )
         }
     }

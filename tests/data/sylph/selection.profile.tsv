@@ -1,0 +1,4 @@
+Sample_file	Genome_file	Sequence_abundance	Adjusted_ANI	Contig_name
+sample-a__input	unused	55	98	matched_contig full header
+sample-a__input	unused	20	97	other_contig
+sample-a__input	unused	15	96	unmatched_contig

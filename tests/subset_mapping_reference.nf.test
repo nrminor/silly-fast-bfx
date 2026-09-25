@@ -1,0 +1,164 @@
+nextflow_process {
+    name "Subset mapping reference records"
+    script "../modules/local/subset_mapping_reference/main.nf"
+    process "SUBSET_MAPPING_REFERENCE"
+    tag "modules"
+    tag "modules_local"
+
+    test("selects exact full headers with inclusive profile bounds") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: 20, max: 55], adjusted_ani: [min: 97, max: 98]]], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.selections[0]
+            def report = file(output[3]).readLines()
+            assertAll(
+                { assert process.success },
+                { assert output[4] == 'true' },
+                { assert file(output[2]).readLines()[0] == '>matched_contig full header' },
+                { assert file(output[2]).readLines()[2] == '>other_contig' },
+                { assert report == ['Contig_name\tstatus', 'matched_contig full header\tresolved', 'other_contig\tresolved', 'unmatched_contig\tfiltered_out'] },
+            )
+        }
+    }
+
+    test("warns and produces no selected records when all candidate names miss") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-token.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.selections[0]
+            assertAll(
+                { assert process.success },
+                { assert output[4] == 'false' },
+                { assert file(output[2]).text.empty },
+                { assert file(output[3]).text.contains('matched_contig\tunresolved') },
+            )
+        }
+    }
+
+    test("fails rather than silently removing partially resolved competitors") {
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: 15, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('partially resolved') },
+            )
+        }
+    }
+
+    test("rejects an absent active profile column") {
+        when {
+            process {
+                """input[0] = [[id: 'missing-column', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: 95, max: null]]], file("\$baseDir/tests/data/sylph/selection-missing-column.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.stdout.join('\n').contains('missing required column')
+        }
+    }
+
+    test("filters missing values when a bound is active") {
+        when {
+            process {
+                """input[0] = [[id: 'missing-value', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: 95, max: null]]], file("\$baseDir/tests/data/sylph/selection-missing-value.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.selections[0]
+            assertAll(
+                { assert process.success },
+                { assert output[4] == 'false' },
+                { assert file(output[3]).text.contains('matched_contig full header\tfiltered_out') },
+            )
+        }
+    }
+
+    test("filters nonfinite values when a bound is active") {
+        when {
+            process {
+                """input[0] = [[id: 'nonfinite-value', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: 20, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-nonfinite.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            def output = process.out.selections[0]
+            assertAll(
+                { assert process.success },
+                { assert output[4] == 'false' },
+                { assert file(output[3]).text.contains('matched_contig full header\tfiltered_out') },
+                { assert file(output[3]).text.contains('other_contig\tfiltered_out') },
+            )
+        }
+    }
+
+    test("rejects nonfinite configured bounds") {
+        when {
+            process {
+                """input[0] = [[id: 'nonfinite-bound', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: Double.NaN, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('bounds must be finite') },
+            )
+        }
+    }
+
+    test("rejects null candidate names") {
+        when {
+            process {
+                """input[0] = [[id: 'null-name', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-null-name.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-reference.fa")]"""
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('Contig_name values must not be null') },
+            )
+        }
+    }
+
+    test("rejects selected FASTA duplicate sequence IDs") {
+        when {
+            process {
+                """input[0] = [[id: 'duplicate-id', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection-duplicate.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-duplicate-id.fa")]"""
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.stdout.join('\n').contains('duplicate sequence ID')
+        }
+    }
+
+    test("rejects selected FASTA duplicate full headers") {
+        when {
+            process {
+                """input[0] = [[id: 'duplicate-header', read_set: 'input'], [id: 'mapping-a', select: [sequence_abundance: [min: 55, max: null], adjusted_ani: [min: null, max: null]]], file("\$baseDir/tests/data/sylph/selection.profile.tsv"), file("\$baseDir/tests/data/sylph/selection-duplicate-header.fa")]"""
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.stdout.join('\n').contains('duplicate full header')
+        }
+    }
+}

@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "subset_mapping_reference"
+description: Select exact full-header FASTA records from one Sylph profile.
+keywords:
+  - fasta
+  - sylph
+  - mapping
+  - reference
+input:
+  - meta:
+      type: map
+      description: Metadata for the sample and profile read set that supplied selection evidence.
+  - reference:
+      type: map
+      description: Normalized mapping reference specification including profile-filter bounds.
+  - profile:
+      type: file
+      description: Official Sylph profile TSV, including its header when no profile rows qualify.
+  - fasta:
+      type: file
+      description: Explicit candidate mapping-reference FASTA.
+output:
+  - selections:
+      type: file
+      description: Tuple of metadata, mapping reference specification, selected FASTA, compact selection report, and HAS_SELECTED_RECORDS.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

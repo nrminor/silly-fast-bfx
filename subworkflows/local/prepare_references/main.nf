@@ -10,6 +10,7 @@ workflow PREPARE_REFERENCES {
     deacon_references
     sylph_references
     skope_references
+    mapping_references
 
     main:
     normalized_deacon_references = deacon_references.collect { reference ->
@@ -102,6 +103,22 @@ workflow PREPARE_REFERENCES {
             : normalized
     }
 
+    normalized_mapping_references = mapping_references.collect { reference ->
+        def select = [
+            sequence_abundance: [min: null, max: null] + (reference.select?.sequence_abundance ?: [:]),
+            adjusted_ani: [min: null, max: null] + (reference.select?.adjusted_ani ?: [:]),
+        ]
+        reference + [
+            select: select,
+            align: [
+                ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8] + (reference.align?.ont ?: [:]),
+                illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5] + (reference.align?.illumina ?: [:]),
+            ],
+            pileups: [enabled: true, max_read_depth: 500] + (reference.pileups ?: [:]),
+            read_store: [enabled: true, reference_allowlist: null] + (reference.read_store ?: [:]),
+        ]
+    }
+
     ch_deacon_source_uses = channel.fromList(normalized_deacon_references).map { reference ->
         def role = reference.fasta ? 'fasta' : 'index'
         def source = reference[role]
@@ -128,9 +145,15 @@ workflow PREPARE_REFERENCES {
             : [tuple(reference.query_index.path ?: reference.query_index.url, 'skope', reference, 'query_index', 0, reference.query_index)]
     }
 
+    ch_mapping_source_uses = channel.fromList(normalized_mapping_references).map { reference ->
+        def source = reference.fasta
+        tuple(source.path ?: source.url, 'mapping', reference, 'fasta', 0, source)
+    }
+
     ch_source_uses = ch_deacon_source_uses
         .mix(ch_sylph_source_uses)
         .mix(ch_skope_source_uses)
+        .mix(ch_mapping_source_uses)
         .map { location, tool, reference, role, order, source ->
             def acquisition_key = source.kind == 'local'
                 ? java.nio.file.Paths.get(location).toAbsolutePath().normalize().toString()
@@ -186,6 +209,7 @@ workflow PREPARE_REFERENCES {
         deacon: it[0] == 'deacon'
         sylph: it[0] == 'sylph'
         skope: it[0] == 'skope'
+        mapping: it[0] == 'mapping'
     }
 
     ch_deacon_sources = ch_reference_sources.deacon.map {
@@ -301,6 +325,10 @@ workflow PREPARE_REFERENCES {
         tuple(reference, entries*.source, entries*.artifact)
     }
 
+    ch_mapping_sources = ch_reference_sources.mapping.map { tool, reference, role, order, source, artifact ->
+        tuple(reference, source, artifact)
+    }
+
     ch_skope_build_uses = ch_skope_sources
         .filter { reference, sources, artifacts -> reference.targets }
         .map { reference, sources, targets ->
@@ -346,9 +374,13 @@ workflow PREPARE_REFERENCES {
     ch_skope_manifest_jobs = ch_skope_sources.map { reference, sources, artifacts ->
         tuple('skope', reference, sources)
     }
+    ch_mapping_manifest_jobs = ch_mapping_sources.map { reference, source, artifact ->
+        tuple('mapping', reference, [source])
+    }
     ch_manifest_jobs = ch_deacon_manifest_jobs
         .mix(ch_sylph_manifest_jobs)
         .mix(ch_skope_manifest_jobs)
+        .mix(ch_mapping_manifest_jobs)
 
     RECORD_REFERENCE_CHECKSUMS(ch_manifest_jobs)
 
@@ -360,5 +392,6 @@ workflow PREPARE_REFERENCES {
     sylph_taxonomy = ch_sylph_taxonomy
     skope = ch_skope_references
     skope_sources = ch_skope_sources
+    mapping = ch_mapping_sources.map { reference, source, artifact -> tuple(reference, artifact) }
     checksum_manifests = RECORD_REFERENCE_CHECKSUMS.out.manifests
 }

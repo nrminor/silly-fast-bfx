@@ -52,6 +52,11 @@
       "default": false,
       "description": "Skip every Skope reference specification."
     },
+    "skip_mapping": {
+      "type": "boolean",
+      "default": false,
+      "description": "Default false. True suppresses the entire mapping branch without removing its reference specifications or disabling independently configured Sylph profiling."
+    },
     "deacon": {
       "$ref": "#/$defs/deacon_configuration",
       "default": {},
@@ -66,6 +71,11 @@
       "$ref": "#/$defs/skope_configuration",
       "default": {},
       "description": "Named Skope reference specifications used to query selected read sets."
+    },
+    "mapping": {
+      "$ref": "#/$defs/mapping_configuration",
+      "default": {"references": []},
+      "description": "Optional named mapping reference specifications; empty means no mapping. Each uses one explicit FASTA and one selection-profile source, not a union of profiles or FASTA files."
     },
     "monoimage": {
       "type": "string",
@@ -638,6 +648,161 @@
           "default": [],
           "description": "Skope reference specifications; an empty list creates no Skope work."
         }
+      }
+    },
+    "mapping_profile_read_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Singular selection: exactly one of input or one named Deacon-filtered read set. This supplies target-selection evidence, not necessarily the reads to map.",
+      "properties": {
+        "input": {
+          "type": "boolean",
+          "description": "Select the input-read Sylph profile; this choice must be true, not a false placeholder selecting nothing."
+        },
+        "deacon_filtered": {
+          "$ref": "#/$defs/reference_id",
+          "description": "One exact Deacon reference ID, not a list; selects the corresponding filtered-read Sylph profile."
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["input"],
+          "not": {"required": ["deacon_filtered"]},
+          "properties": {"input": {"const": true, "description": "True selects the input-read Sylph profile."}}
+        },
+        {"required": ["deacon_filtered"], "not": {"required": ["input"]}}
+      ]
+    },
+    "mapping_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "read_set"],
+      "description": "One existing Sylph profile source per sample.",
+      "properties": {
+        "reference": {
+          "$ref": "#/$defs/reference_id",
+          "description": "Exact existing Sylph reference-specification ID, not a filename; select that specification's profile for the same sample and chosen profiling read set."
+        },
+        "read_set": {
+          "$ref": "#/$defs/mapping_profile_read_set",
+          "description": "Singular selection of the Sylph profile read set used as target-selection evidence."
+        }
+      }
+    },
+    "mapping_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inclusive numeric bounds; null or omission disables each bound.",
+      "properties": {
+        "min": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Inclusive lower bound; null or omission disables it. Missing row values fail an active bound, and a minimum above maximum is rejected."
+        },
+        "max": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Inclusive upper bound; null or omission disables it. Missing row values fail an active bound, and a minimum above maximum is rejected."
+        }
+      }
+    },
+    "mapping_select": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional filters on Sylph profile rows before FASTA subsetting; inclusive active bounds combine with AND, and no active bounds retain all rows.",
+      "properties": {
+        "sequence_abundance": {
+          "$ref": "#/$defs/mapping_bound",
+          "default": {"min": null, "max": null},
+          "description": "Sylph's reported Sequence_abundance in percentage points, not a fraction or mapped-read count; preserve its interpretation as an estimate."
+        },
+        "adjusted_ani": {
+          "$ref": "#/$defs/mapping_bound",
+          "default": {"min": null, "max": null},
+          "description": "Sylph's reported Adjusted_ANI in percentage points, not a mapper identity threshold."
+        }
+      }
+    },
+    "mapping_align_platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "Minimap2 preset for this platform; later mapping keeps records independent rather than paired fragments."
+        },
+        "max_secondary": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum reported secondary alignments per read, not a count of primary or supplementary records and not an exhaustive search guarantee."
+        },
+        "secondary_score_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimap2 secondary-to-primary chain-score ratio, not identity, abundance, or MAPQ; mapper heuristics and count caps can still limit alternatives."
+        }
+      }
+    },
+    "mapping_align": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defaults for the future competitive minimap2 mapping stage; this selection-only release does not execute alignment.",
+      "properties": {
+        "ont": {
+          "allOf": [
+            {"$ref": "#/$defs/mapping_align_platform"},
+            {"properties": {"preset": {"enum": ["map-ont", "lr:hq"], "default": "map-ont", "description": "Default map-ont; lr:hq is an explicit high-accuracy ONT option, never inferred from platform alone."}, "max_secondary": {"default": 5, "description": "Default maximum of five reported secondary alignments per read."}, "secondary_score_ratio": {"default": 0.8, "description": "Default secondary-to-primary chain-score ratio of 0.8."}}}
+          ],
+          "description": "ONT alignment settings."
+        },
+        "illumina": {
+          "allOf": [
+            {"$ref": "#/$defs/mapping_align_platform"},
+            {"properties": {"preset": {"const": "sr", "default": "sr", "description": "The sr preset; records are mapped independently, not as paired fragments, even when mate identity is retained."}, "max_secondary": {"default": 20, "description": "Default maximum of 20 reported secondary alignments per read."}, "secondary_score_ratio": {"default": 0.5, "description": "Default secondary-to-primary chain-score ratio of 0.5."}}}
+          ],
+          "description": "Illumina alignment settings."
+        }
+      }
+    },
+    "mapping_pileups": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defaults for future pileup publication; this selection-only release does not create pileups.",
+      "properties": {
+        "enabled": {"type": "boolean", "default": true, "description": "Default true; controls future visualization only, not alignment production or quantitative coverage and counts."},
+        "max_read_depth": {"type": "integer", "minimum": 1, "default": 500, "description": "Default 500; display subsampling cap only. Never apply it to BAM evidence, coverage, counts, or Parquet."}
+      }
+    },
+    "mapping_read_store": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defaults for future aligned-read Parquet publication; this selection-only release does not create a read store.",
+      "properties": {
+        "enabled": {"type": "boolean", "default": true, "description": "Default true; publish one future self-contained Parquet table with one row per reported alignment and repeated original read payload. Unaligned sequences are omitted, but their counts remain available."},
+        "reference_allowlist": {"oneOf": [{"$ref": "#/$defs/artifact_source"}, {"type": "null"}], "default": null, "description": "Optional text artifact of exact full reference names. Any matching placement includes the read with all its competitive placements; it has no effect on BAMs, mapping, coverage, or denominators."}
+      }
+    },
+    "mapping_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "profile", "fasta", "read_sets"],
+      "properties": {
+        "id": {"$ref": "#/$defs/reference_id", "description": "Distinguishes mapping outputs and configurations; not an organism name, taxid, or Sylph target identifier."},
+        "profile": {"$ref": "#/$defs/mapping_profile", "description": "The exact one-reference, one-read-set Sylph profile source used for selection."},
+        "fasta": {"$ref": "#/$defs/artifact_source", "description": "One local or HTTPS candidate FASTA following existing source conventions. It is explicit, never implicitly taken from Sylph; retained Contig_name values match complete record headers exactly."},
+        "select": {"$ref": "#/$defs/mapping_select", "default": {"sequence_abundance": {"min": null, "max": null}, "adjusted_ani": {"min": null, "max": null}}, "description": "Inclusive Sylph profile filters applied before exact-header FASTA subsetting."},
+        "read_sets": {"$ref": "#/$defs/read_sets", "description": "Mapping input choices, independent of the profiling read set. Input and/or named filtered sets are allowed; each later produces separate outputs with its own denominator."},
+        "align": {"$ref": "#/$defs/mapping_align", "description": "Future competitive-alignment settings, documented here but not executed by this selection-only release."},
+        "pileups": {"$ref": "#/$defs/mapping_pileups", "default": {"enabled": true, "max_read_depth": 500}, "description": "Future pileup settings, documented here but not executed by this selection-only release."},
+        "read_store": {"$ref": "#/$defs/mapping_read_store", "default": {"enabled": true, "reference_allowlist": null}, "description": "Future aligned-read store settings, documented here but not executed by this selection-only release."}
+      }
+    },
+    "mapping_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "references": {"type": "array", "uniqueEntries": ["id"], "items": {"$ref": "#/$defs/mapping_reference"}, "default": [], "description": "Optional named mapping reference specifications; an empty list creates no mapping work."}
       }
     }
   }

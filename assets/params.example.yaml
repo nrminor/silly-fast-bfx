@@ -9,6 +9,7 @@ bqtools:
 skip_deacon: true
 skip_sylph: true
 skip_skope: true
+skip_mapping: false
 deacon:
   references:
     - id: respiratory
@@ -65,3 +66,6 @@ skope:
       query:
         abundance_thresholds: [10]
         confidence: false
+
+mapping:
+  references: []
