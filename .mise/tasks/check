@@ -3,6 +3,7 @@
 set -euo pipefail
 
 mise run locks-check
+mise run python-check
 mise run nextflow-config-check
 mise run tools-check
 mise run test
