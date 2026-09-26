@@ -15,7 +15,7 @@ workflow MAP_READ_SETS {
     main:
     ch_profiles_by_source = sylph_profiles.map { meta, sylph_reference, profile, has_profile_rows ->
         def source = meta.read_set == 'input' ? 'input' : "deacon:${meta.deacon_id}"
-        tuple([sylph_reference.id, source], meta, profile)
+        tuple([sylph_reference.id, source], meta + [sylph_estimate_read_counts: sylph_reference.profile?.estimate_read_counts == true], profile)
     }
 
     ch_selection_routes = mapping_references.map { reference, fasta ->
@@ -75,7 +75,7 @@ workflow MAP_READ_SETS {
     ch_alignment_jobs = ch_selected_prepared_read_sets
         .map { route, profile_meta, reference, fasta, profile, mapping_meta, reads, collisions, read_count ->
             def profile_source = profile_meta.read_set == 'input' ? 'input' : "deacon:${profile_meta.deacon_id}"
-            tuple(mapping_meta + [profile_read_set: profile_source], reference, fasta, profile, reads, collisions, read_count)
+            tuple(mapping_meta + [profile_read_set: profile_source, sylph_estimate_read_counts: profile_meta.sylph_estimate_read_counts], reference, fasta, profile, reads, collisions, read_count)
         }
 
     MAP_READS_WITH_MINIMAP2(ch_alignment_jobs)

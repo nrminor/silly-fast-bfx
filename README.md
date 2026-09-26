@@ -115,9 +115,23 @@ build:
 
 `skip_deacon`, `skip_sylph`, `skip_skope`, and `skip_mapping` disable all reference specifications for the named path without requiring their declarations to be removed. Empty `references` lists also create no work. `skip_mapping` leaves independently configured Sylph profiling enabled.
 
-Mapping reference selection uses one explicit `mapping.references` entry per configuration. Its `profile` names exactly one Sylph reference specification and one profile read set; its `fasta` is the sole candidate FASTA. Optional inclusive `select.sequence_abundance` and `select.adjusted_ani` bounds combine with AND. Retained Sylph `Contig_name` values match the complete FASTA record header exactly, never `Genome_file` or a whitespace-delimited token. A profile with no qualifying rows, or whose qualifying names all miss the FASTA, creates no future mapping task; a partial match fails rather than silently removing competitors.
+Mapping reference selection uses one explicit `mapping.references` entry per configuration. Its `profile` names exactly one Sylph reference specification and one profile read set; its `fasta` is the sole candidate FASTA. Optional inclusive `select.sequence_abundance` and `select.adjusted_ani` bounds combine with AND on raw Sylph values: `Sequence_abundance` is normally percentage points, but the source Sylph reference's `profile.estimate_read_counts: true` changes it to estimated reads. Retained Sylph `Contig_name` values match the complete FASTA record header exactly, never `Genome_file` or a whitespace-delimited token. A profile with no qualifying rows, or whose qualifying names all miss the FASTA, creates no future mapping task; a partial match fails rather than silently removing competitors.
 
 Mapping maps the independently selected `read_sets` against each selected FASTA with minimap2 2.30 and samtools 1.22.1. Illumina uses `-x sr --frag=no --secondary=yes`; ONT uses its configured preset with independent records and secondary reporting. BAMs retain primary, secondary, supplementary, and unmapped records. Counts use one primary mapped alignment per enforced-unique mapper QNAME, so they report distinct total, mapped, and unmapped read records rather than alignment rows.
+
+In each per-reference coverage row, `supporting_read_count` counts a read once for that reference; `exclusive_read_count` counts reads reported at only one reference, and `shared_read_count` counts reads reported at multiple references. `exclusive_breadth` and `exclusive_mean_depth` use only exclusive reads; `breadth` and `mean_depth` use all supporting reads.
+
+The coverage comparison TSV retains source Sylph values alongside mapper measurements:
+
+| Columns | Interpretation |
+|---|---|
+| `Taxonomic_abundance` | Sylph's coverage-normalized percentage estimate. |
+| `Sequence_abundance`, `sylph_sequence_abundance_units` | Raw Sylph value and explicit `percent` or `estimated_reads`, determined by the **source** Sylph profile's `estimate_read_counts` setting. |
+| `Adjusted_ANI` | Sylph's adjusted ANI in percentage points. |
+| `Eff_cov`, `True_cov` | Sylph's estimated depth; the unavailable alternative is empty. `True_cov` can also occur with `estimate_unknown: true` and does not imply estimated read counts. |
+| `profiling_read_set`, `mapped_read_set` | Read sets behind the Sylph estimates and mapper measurements respectively; they can differ. |
+
+Sylph's estimated reads are not mapper-observed read counts, and estimated depth is not a read count. Sylph's `estimate_read_counts` mode is optimized for short reads; interpret comparisons cautiously for long reads and when the profiling and mapped read sets differ.
 
 Alignoth plotting is disabled by default. To enable it for a mapping reference specification, add `pileups: {enabled: true}` to that entry. Set `enabled: false` or omit it to skip plotting. The optional `pileups.max_read_depth` defaults to 500 and limits displayed alignments only; neither setting changes BAMs, coverage, counts, or classified-read storage.
 

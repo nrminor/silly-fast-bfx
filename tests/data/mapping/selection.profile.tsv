@@ -1,2 +1,2 @@
-Sample_file	Genome_file	Sequence_abundance	Adjusted_ANI	Contig_name
-sample-a__input	unused	100	99	reference-a
+Sample_file	Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	True_cov	Contig_name
+sample-a__input	unused	87.50	100	99	2.75	reference-a

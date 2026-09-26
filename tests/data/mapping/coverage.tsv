@@ -1,4 +1,4 @@
-reference_id	reference_name	reference_length	profiling_read_set	mapped_read_set	Sequence_abundance	Adjusted_ANI	total_read_count	mapper_mapped_read_count	distinct_read_count	mapped_read_fraction	covered_bases	breadth	mean_depth
+reference_id	reference_name	reference_length	profiling_read_set	mapped_read_set	Sequence_abundance	Adjusted_ANI	total_read_count	mapper_mapped_read_count	supporting_read_count	mapped_read_fraction	covered_bases	breadth	mean_depth
 refA	refA full header	10	input	input	12.50	99.10	4	3	2	0.5	8	0.8	1.2
 ref/with/slash	ref/with/slash full header	10	input	input	7.25	98.20	4	3	2	0.5	7	0.7	0.8
 refZero	refZero full header	10	input	input	0.00	97.00	4	3	0	0.0	0	0.0	0.0

@@ -714,7 +714,7 @@
         "sequence_abundance": {
           "$ref": "#/$defs/mapping_bound",
           "default": {"min": null, "max": null},
-          "description": "Sylph's reported Sequence_abundance in percentage points, not a fraction or mapped-read count; preserve its interpretation as an estimate."
+          "description": "Inclusive bounds on raw Sylph Sequence_abundance: percentage points normally, estimated read counts when the source Sylph reference profile.estimate_read_counts is true. These are not mapper counts."
         },
         "adjusted_ani": {
           "$ref": "#/$defs/mapping_bound",

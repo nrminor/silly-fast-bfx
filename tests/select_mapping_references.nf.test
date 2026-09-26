@@ -62,10 +62,13 @@ nextflow_workflow {
         when {
             workflow {
                 """
-                input[0] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'sylph-a'], file("\$baseDir/tests/data/mapping/selection.profile.tsv"), 'true'))
+                input[0] = channel.of(
+                    tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'sylph-a', profile: [estimate_read_counts: false, estimate_unknown: true]], file("\$baseDir/tests/data/mapping/selection.profile.tsv"), 'true'),
+                    tuple([id: 'sample-a', platform: 'illumina', read_set: 'deacon_filtered', deacon_id: 'host'], [id: 'sylph-b', profile: [estimate_read_counts: true, estimate_unknown: true]], file("\$baseDir/tests/data/mapping/selection.profile.tsv"), 'true'),
+                )
                 input[1] = channel.of(tuple([id: 'sample-a', platform: 'illumina', read_set: 'input'], [file("\$baseDir/tests/data/mapping/ambiguous.fastq")]))
                 input[2] = channel.of(
-                    tuple([id: 'mapping-a', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
+                    tuple([id: 'mapping-a', profile: [reference: 'sylph-b', read_set: [deacon_filtered: 'host']], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
                     tuple([id: 'mapping-b', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]], pileups: [enabled: false], read_store: [enabled: false]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
                     tuple([id: 'mapping-c', profile: [reference: 'sylph-a', read_set: [input: true]], read_sets: [input: true], select: [sequence_abundance: [min: null, max: null], adjusted_ani: [min: null, max: null]], align: [ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8], illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]], pileups: [enabled: true]], file("\$baseDir/tests/data/mapping/ambiguous-reference.fa")),
                  )
@@ -84,6 +87,16 @@ nextflow_workflow {
                 { assert workflow.out.classified_reads.collect { meta, reference, store -> reference.id } as Set == ['mapping-a', 'mapping-c'] as Set },
                 { assert workflow.out.alignments.collect { meta, reference, fasta, profile, bam, csi, counts -> reference.id } as Set == ['mapping-a', 'mapping-b', 'mapping-c'] as Set },
                 { assert workflow.out.pileups.collect { meta, reference, pileups -> reference.id } == ['mapping-c'] },
+                { assert workflow.out.coverage.collectEntries { meta, reference, fasta, bam, csi, counts, coverage, intervals ->
+                    def lines = file(coverage).readLines()
+                    def columns = lines[0].split('\t')
+                    def row = lines[1].split('\t', -1)
+                    [(reference.id): columns.toList().withIndex().collectEntries { column, index -> [(column): row[index]] }]
+                }.collectEntries { id, row -> [(id): row.subMap(['profiling_read_set', 'mapped_read_set', 'Taxonomic_abundance', 'Sequence_abundance', 'sylph_sequence_abundance_units', 'Adjusted_ANI', 'Eff_cov', 'True_cov'])] } == [
+                    'mapping-a': [profiling_read_set: 'deacon:host', mapped_read_set: 'input', Taxonomic_abundance: '87.50', Sequence_abundance: '100', sylph_sequence_abundance_units: 'estimated_reads', Adjusted_ANI: '99', Eff_cov: '', True_cov: '2.75'],
+                    'mapping-b': [profiling_read_set: 'input', mapped_read_set: 'input', Taxonomic_abundance: '87.50', Sequence_abundance: '100', sylph_sequence_abundance_units: 'percent', Adjusted_ANI: '99', Eff_cov: '', True_cov: '2.75'],
+                    'mapping-c': [profiling_read_set: 'input', mapped_read_set: 'input', Taxonomic_abundance: '87.50', Sequence_abundance: '100', sylph_sequence_abundance_units: 'percent', Adjusted_ANI: '99', Eff_cov: '', True_cov: '2.75'],
+                ] },
             )
         }
     }

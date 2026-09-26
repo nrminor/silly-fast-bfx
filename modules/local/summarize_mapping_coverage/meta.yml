@@ -8,7 +8,7 @@ keywords:
 input:
   - meta:
       type: map
-      description: Mapped read-set metadata including the selection-profile read set.
+      description: Mapped read-set metadata including the selection-profile read set and source Sylph estimate_read_counts setting.
   - reference:
       type: map
       description: Mapping reference specification.
@@ -30,7 +30,7 @@ input:
 output:
   - coverage:
       type: file
-      description: Tuple containing inputs retained for visualization, per-reference coverage comparison TSV, and depth interval TSV.
+      description: Tuple containing inputs retained for visualization, per-reference coverage comparison TSV with source Sylph values and sequence-abundance units, and depth interval TSV.
   - versions:
       type: file
       description: Software versions topic.

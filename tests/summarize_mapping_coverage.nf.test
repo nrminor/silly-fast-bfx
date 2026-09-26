@@ -5,7 +5,7 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
-    test("reports all and unique-reference coverage while retaining zero-hit references") {
+    test("reports supporting and exclusive-reference coverage while retaining zero-hit references") {
         setup {
             def bam = file("$outputDir/coverage.bam")
             def source = file("$baseDir/tests/data/mapping/coverage.sam")
@@ -27,7 +27,7 @@ nextflow_process {
             def lines = file(output[6]).readLines()
             def columns = lines[0].split('\t')
             def rows = lines.drop(1).collectEntries { line ->
-                def values = line.split('\t')
+                def values = line.split('\t', -1)
                 [(values[0]): values]
             }
             def metrics = { row ->
@@ -37,11 +37,39 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert rows.keySet() == ['refA', 'ref/with/slash', 'refZero'] as Set },
-                { assert rows.refA[5..6] == ['12.50', '99.10'] },
-                { assert metrics(rows.refA).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'breadth', 'mean_depth', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '2', unique_read_count: '1', ambiguous_read_count: '1', breadth: '0.8', mean_depth: '1.2', unique_breadth: '0.5', unique_mean_depth: '0.5'] },
-                { assert metrics(rows['ref/with/slash']).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'breadth', 'mean_depth', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '2', unique_read_count: '1', ambiguous_read_count: '1', breadth: '0.7', mean_depth: '0.8', unique_breadth: '0.4', unique_mean_depth: '0.4'] },
-                { assert metrics(rows.refZero).subMap(['distinct_read_count', 'unique_read_count', 'ambiguous_read_count', 'unique_breadth', 'unique_mean_depth']) == [distinct_read_count: '0', unique_read_count: '0', ambiguous_read_count: '0', unique_breadth: '0.0', unique_mean_depth: '0.0'] },
+                { assert metrics(rows.refA).subMap(['profiling_read_set', 'mapped_read_set', 'Taxonomic_abundance', 'Sequence_abundance', 'sylph_sequence_abundance_units', 'Adjusted_ANI', 'Eff_cov', 'True_cov']) == [profiling_read_set: 'deacon:selector', mapped_read_set: 'input', Taxonomic_abundance: '9.75', Sequence_abundance: '12.50', sylph_sequence_abundance_units: 'percent', Adjusted_ANI: '99.10', Eff_cov: '3.40', True_cov: ''] },
+                { assert metrics(rows.refZero).subMap(['Taxonomic_abundance', 'Sequence_abundance', 'Eff_cov', 'True_cov']) == [Taxonomic_abundance: '0.00', Sequence_abundance: '0.00', Eff_cov: '0.00', True_cov: ''] },
+                { assert metrics(rows.refA).subMap(['supporting_read_count', 'exclusive_read_count', 'shared_read_count', 'breadth', 'mean_depth', 'exclusive_breadth', 'exclusive_mean_depth']) == [supporting_read_count: '2', exclusive_read_count: '1', shared_read_count: '1', breadth: '0.8', mean_depth: '1.2', exclusive_breadth: '0.5', exclusive_mean_depth: '0.5'] },
+                { assert metrics(rows['ref/with/slash']).subMap(['supporting_read_count', 'exclusive_read_count', 'shared_read_count', 'breadth', 'mean_depth', 'exclusive_breadth', 'exclusive_mean_depth']) == [supporting_read_count: '2', exclusive_read_count: '1', shared_read_count: '1', breadth: '0.7', mean_depth: '0.8', exclusive_breadth: '0.4', exclusive_mean_depth: '0.4'] },
+                { assert metrics(rows.refZero).subMap(['supporting_read_count', 'exclusive_read_count', 'shared_read_count', 'exclusive_breadth', 'exclusive_mean_depth']) == [supporting_read_count: '0', exclusive_read_count: '0', shared_read_count: '0', exclusive_breadth: '0.0', exclusive_mean_depth: '0.0'] },
                 { assert intervals.drop(1).every { !it.startsWith('refZero\t') } },
+            )
+        }
+    }
+
+    test("retains read-count-mode Sylph values and estimated depth without conflating counts") {
+        setup {
+            def bam = file("$outputDir/coverage.bam")
+            assert ['samtools', 'view', '-b', '-o', bam.toString(), file("$baseDir/tests/data/mapping/coverage.sam").toString()].execute().waitFor() == 0
+            assert ['samtools', 'index', '-c', bam.toString()].execute().waitFor() == 0
+            file("$outputDir/coverage.counts.json").text = '{"total_reads": 4, "mapped_reads": 3, "unmapped_reads": 1}\n'
+        }
+
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input', profile_read_set: 'deacon:selector', sylph_estimate_read_counts: true], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/coverage-reference.fa"), file("\$baseDir/tests/data/mapping/coverage-read-counts.profile.tsv"), file("$outputDir/coverage.bam"), file("$outputDir/coverage.bam.csi"), file("$outputDir/coverage.counts.json")]"""
+            }
+        }
+
+        then {
+            def lines = file(process.out.coverage[0][6]).readLines()
+            def columns = lines[0].split('\t')
+            def values = lines.find { it.startsWith('refA\t') }.split('\t', -1)
+            def row = columns.toList().withIndex().collectEntries { column, index -> [(column): values[index]] }
+            assertAll(
+                { assert process.success },
+                { assert row.subMap(['Taxonomic_abundance', 'Sequence_abundance', 'sylph_sequence_abundance_units', 'Adjusted_ANI', 'Eff_cov', 'True_cov']) == [Taxonomic_abundance: '9.75', Sequence_abundance: '124.00', sylph_sequence_abundance_units: 'estimated_reads', Adjusted_ANI: '99.10', Eff_cov: '', True_cov: '3.40'] },
+                { assert row.supporting_read_count == '2' },
             )
         }
     }

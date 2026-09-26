@@ -1,0 +1,4 @@
+Contig_name	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	True_cov
+refA full header	9.75	124.00	99.10	3.40
+ref/with/slash full header	6.25	70.00	98.20	1.25
+refZero full header	0.00	0.00	97.00	0.00

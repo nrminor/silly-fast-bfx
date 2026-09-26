@@ -49,7 +49,7 @@ def covered_references(path: Path) -> tuple[tuple[str, int], ...]:
         return tuple(
             (row["reference_id"], int(row["reference_length"]))
             for row in rows
-            if int(row["distinct_read_count"]) > 0
+            if int(row["supporting_read_count"]) > 0
         )
 
 
