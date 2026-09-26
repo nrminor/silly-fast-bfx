@@ -120,6 +120,7 @@ nextflow_workflow {
     }
 
     test("keeps sample sketches separate while reusing each compatible sketch across Sylph references") {
+        tag "taxonomy_absent"
         setup {
             run("BUILD_DEACON_INDEX") {
                 script "../modules/local/build_deacon_index/main.nf"
@@ -181,6 +182,7 @@ nextflow_workflow {
                 { assert workflow.trace.tasks().count { it.name.contains('FILTER_READS_WITH_DEACON') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 8 },
                 { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 12 },
+                { assert workflow.trace.tasks().count { it.name.contains('RENDER_SYLPH_TAXONOMY_WITH_KRONA') || it.name.contains('RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA') } == 0 },
                 {
                     assert profiles.keySet() == [
                         'sample-a:input:sylph-a', 'sample-a:input:sylph-b', 'sample-a:input:sylph-c',
@@ -450,6 +452,59 @@ nextflow_workflow {
                 { assert workflow.out.sylph_taxonomy.size() == 1 },
                 { assert taxonomy[1].id == 'configured' },
                 { assert file(taxonomy[2]).name == 'sample-a__input.sylphmpa' },
+            )
+        }
+    }
+
+    test("keeps Krona datasets independent by Sylph reference and honors taxonomy opt-out") {
+        tag "taxonomy_krona"
+        setup {
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+        }
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    tuple([id: 'sample-b', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]),
+                    tuple([id: 'sample-a', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]),
+                )
+                input[1] = channel.empty()
+                input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
+                    ['ref-a', 'ref-b', 'opted-out', 'raw-only'].collect { id ->
+                        tuple(
+                            [kmer_length: 31, compression: 2, no_dedup: false],
+                            [id: id, read_sets: [input: true], taxonomy: [krona: id != 'opted-out'], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                            database,
+                        )
+                    }
+                }
+                input[3] = channel.of('ref-a', 'ref-b', 'opted-out').map { id ->
+                    tuple([id: id], [], [file("\$baseDir/tests/data/sylph/taxonomy-a.tsv")])
+                }
+                input[4] = channel.empty()
+                """
+            }
+        }
+        then {
+            def combined = workflow.out.sylph_krona_combined.collectEntries { reference, chart ->
+                [(reference.id): file(chart).text]
+            }
+            def singles = workflow.out.sylph_krona.collect { meta, reference, chart ->
+                "${reference.id}:${meta.id}:${file(chart).name}".toString()
+            } as Set
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.sylph_taxonomy.size() == 6 },
+                { assert singles == ['ref-a:sample-a:sample-a__input.krona.html', 'ref-a:sample-b:sample-b__input.krona.html', 'ref-b:sample-a:sample-a__input.krona.html', 'ref-b:sample-b:sample-b__input.krona.html'] as Set },
+                { assert combined.keySet() == ['ref-a', 'ref-b'] as Set },
+                { assert combined.values().every { it =~ /<dataset>sample-a__input<\/dataset>\s*<dataset>sample-b__input<\/dataset>/ } },
+                { assert combined.values().every { it.contains('<magnitude><val>100</val><val>100</val></magnitude>') && !it.contains('<val>200</val>') } },
+                { assert workflow.trace.tasks().count { it.name.contains('RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA') } == 2 },
             )
         }
     }

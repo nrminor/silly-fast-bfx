@@ -1,0 +1,156 @@
+nextflow_process {
+    name "Render canonical Sylph taxonomy with Krona"
+    script "../modules/local/render_sylph_taxonomy_with_krona/main.nf"
+    process "RENDER_SYLPH_TAXONOMY_WITH_KRONA"
+    tag "modules"
+    tag "modules_local"
+
+    test("conserves cumulative ranks and direct parent mass with escaped labels") {
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'sample-a', read_set: 'input'],
+                    [id: 'ref-a', taxonomy: [krona: true]],
+                    file("\$baseDir/tests/data/sylph/krona-cumulative.sylphmpa"),
+                ]
+                """
+            }
+        }
+        then {
+            def tsv = file(process.out.contributions[0][2]).readLines()
+            def chart = file(process.out.charts[0][2]).text
+            assertAll(
+                { assert process.success },
+                { assert tsv.size() == 4 },
+                { assert tsv.sum { it.split('\t')[0].toDouble() } == 100.1438d },
+                { assert tsv.any { it.startsWith('40.0\tA&amp;amp;B') && it.split('\t').size() == 2 } },
+                { assert tsv.count { it.contains('shared_label') } == 2 },
+                { assert tsv.any { it.contains('literal&amp;lt;script&amp;gt;&amp;amp;&amp;quot;&amp;#x27;') } },
+                { assert tsv.every { !it.contains('t__') && !it.contains('accession') && !it.contains('first_group__') } },
+                { assert chart.contains('Relative abundance (%)') && chart.contains('krona-cumulative') },
+                { assert chart.contains('<node name="literal&amp;lt;script&amp;gt;&amp;amp;&amp;quot;&amp;#x27;">') },
+            )
+        }
+    }
+
+    test("allows floating summation noise without changing totals materially") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'near', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-rounding.sylphmpa")]
+                """
+            }
+        }
+        then {
+            def tsv = file(process.out.contributions[0][2]).readLines()
+            assertAll(
+                { assert process.success },
+                { assert tsv.size() == 2 },
+                { assert Math.abs(tsv.sum { it.split('\t')[0].toDouble() } - 1.0d) < 1e-6 },
+                { assert tsv.every { it.split('\t')[0].toDouble() > 0 } },
+            )
+        }
+    }
+
+    test("rejects material children-exceed-parent inconsistencies") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'bad', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-invalid.sylphmpa")]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('children-exceed-parent abundance: d__A') },
+            )
+        }
+    }
+
+    test("rejects duplicate canonical paths before subtracting ancestors") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'duplicate', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-duplicate.sylphmpa")]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('Duplicate canonical taxonomy path: d__A|p__repeated') },
+            )
+        }
+    }
+
+    test("rejects null canonical abundance instead of losing mass") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'missing', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-null-abundance.sylphmpa")]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('Invalid or children-exceed-parent abundance: d__A|p__missing') },
+            )
+        }
+    }
+
+    test("retains genuine tiny positive direct parent mass") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'tiny', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-tiny-residual.sylphmpa")]
+                """
+            }
+        }
+        then {
+            def tsv = file(process.out.contributions[0][2]).readLines()
+            assertAll(
+                { assert process.success },
+                { assert tsv.size() == 2 },
+                { assert tsv.any { it.split('\t').size() == 2 && it.split('\t')[0].toDouble() > 0 && it.split('\t')[0].toDouble() < 1e-12 } },
+                { assert Math.abs(tsv.sum { it.split('\t')[0].toDouble() } - 1.0d) < 1e-12 },
+            )
+        }
+    }
+
+    test("emits no chart or contribution for zero-total canonical taxonomy") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'empty', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-empty.sylphmpa")]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.contributions.isEmpty() },
+                { assert process.out.charts.isEmpty() },
+            )
+        }
+    }
+
+    test("emits no chart for a header-only taxonomy profile") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'header-only', read_set: 'input'], [id: 'ref-a'], file("\$baseDir/tests/data/sylph/krona-header-only.sylphmpa")]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.success },
+                { assert process.out.contributions.isEmpty() },
+                { assert process.out.charts.isEmpty() },
+            )
+        }
+    }
+}

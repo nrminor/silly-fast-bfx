@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/yaml-schema.json
+name: "render_combined_sylph_taxonomy_with_krona"
+description: Render separate sample/read-set datasets together for one Sylph reference specification.
+keywords:
+  - sylph
+  - taxonomy
+  - krona
+tools:
+  - krona:
+      description: Interactive taxonomy chart renderer.
+      homepage: https://github.com/marbl/Krona
+input:
+  - reference:
+      type: map
+      description: Sylph reference specification.
+  - labels:
+      type: list
+      description: Ordered sample/read-set dataset names.
+  - contributions:
+      type: file
+      description: Ordered nonempty list of matching per-sample contribution TSVs.
+output:
+  - charts:
+      type: file
+      description: Self-contained comparative HTML chart with independently selectable datasets.
+  - versions:
+      type: file
+      description: Software versions topic.
+authors:
+  - "@nrminor"
+maintainers:
+  - "@nrminor"

@@ -254,6 +254,7 @@ nextflow_pipeline {
     }
 
     test("every user-facing schema property provides hover documentation") {
+        tag "taxonomy_krona"
         setup {
             def samplesheet = file("$outputDir/exact.csv")
             samplesheet.parentFile.mkdirs()
@@ -298,6 +299,7 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 { assert missing.isEmpty(): "Missing schema descriptions: ${missing.join(', ')}" },
+                { assert schema.'$defs'.sylph_taxonomy.properties.krona.default == true },
             )
         }
     }

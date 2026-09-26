@@ -12,3 +12,4 @@ sracha --help >/dev/null
 minimap2 --version
 samtools --version
 alignoth --version
+ktImportText 2>&1 | grep -q 'KronaTools 2.8.1'

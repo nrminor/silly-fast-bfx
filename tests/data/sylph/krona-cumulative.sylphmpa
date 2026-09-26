@@ -1,0 +1,9 @@
+#SampleID	synthetic	Taxonomies_used:stub
+clade_name	relative_abundance	sequence_abundance
+d__A&B	80	0
+d__A&B|p__first_group	40	0
+d__A&B|p__first_group|s__shared_label	30	0
+d__A&B|p__first_group|s__literal<script>&"'	10	0
+d__A&B|p__first_group|s__literal<script>&"'|t__accession|id=arbitrary	10	0
+d__B	20.1438	0
+d__B|p__second_group|s__shared_label	20.1438	0

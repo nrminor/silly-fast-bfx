@@ -417,6 +417,11 @@
           "minItems": 1,
           "items": {"$ref": "#/$defs/artifact_source"},
           "description": "One or more explicit sylph-tax metadata mappings applied to meaningful profiles from this reference specification."
+        },
+        "krona": {
+          "type": "boolean",
+          "default": true,
+          "description": "Default true; render a standalone Krona taxonomy chart per sample/read set and a separate-dataset all-sample chart for this Sylph reference. Uses unscaled relative_abundance percentages from canonical d/p/c/o/f/g/s ranks only, without reference metadata, accession lookup, or pooling across samples. False retains taxonomy summaries without charts."
         }
       }
     },

@@ -4,6 +4,8 @@ include { FILTER_READS_WITH_DEACON   } from '../../../modules/local/filter_reads
 include { SKETCH_READS_WITH_SYLPH    } from '../../../modules/local/sketch_reads_with_sylph'
 include { PROFILE_READS_WITH_SYLPH   } from '../../../modules/local/profile_reads_with_sylph'
 include { SUMMARIZE_SYLPH_TAXONOMY   } from '../../../modules/local/summarize_sylph_taxonomy'
+include { RENDER_SYLPH_TAXONOMY_WITH_KRONA } from '../../../modules/local/render_sylph_taxonomy_with_krona'
+include { RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA } from '../../../modules/local/render_combined_sylph_taxonomy_with_krona'
 include { QUERY_READS_WITH_SKOPE      } from '../../../modules/local/query_reads_with_skope'
 
 workflow SCREEN_READ_SETS {
@@ -125,6 +127,24 @@ workflow SCREEN_READ_SETS {
 
     SUMMARIZE_SYLPH_TAXONOMY(ch_sylph_taxonomy_jobs)
 
+    ch_krona_jobs = SUMMARIZE_SYLPH_TAXONOMY.out.taxonomy_profiles
+        .filter { meta, reference, taxonomy_profile -> reference.taxonomy?.krona != false }
+
+    RENDER_SYLPH_TAXONOMY_WITH_KRONA(ch_krona_jobs)
+
+    ch_krona_by_reference = RENDER_SYLPH_TAXONOMY_WITH_KRONA.out.contributions
+        .map { meta, reference, contribution ->
+            def read_set_name = meta.read_set == 'input' ? 'input' : "deacon-${meta.deacon_id}"
+            tuple(reference.id, reference, "${meta.id}__${read_set_name}", contribution)
+        }
+        .groupTuple(by: 0)
+        .map { reference_id, references, labels, contributions ->
+            def ordered = [labels, contributions].transpose().sort { left, right -> left[0] <=> right[0] }
+            tuple(references[0], ordered*.getAt(0), ordered*.getAt(1))
+        }
+
+    RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA(ch_krona_by_reference)
+
     ch_skope_routes = skope_references.flatMap { reference, query_index ->
         def sources = (reference.read_sets.input ? ['input'] : []) +
             (reference.read_sets.deacon_filtered ?: []).collect { deacon_id -> "deacon:${deacon_id}" }
@@ -169,5 +189,7 @@ workflow SCREEN_READ_SETS {
     sylph = PROFILE_READS_WITH_SYLPH.out.profiles
     sylph_profiles = ch_sylph_profiles
     sylph_taxonomy = SUMMARIZE_SYLPH_TAXONOMY.out.taxonomy_profiles
+    sylph_krona = RENDER_SYLPH_TAXONOMY_WITH_KRONA.out.charts
+    sylph_krona_combined = RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA.out.charts
     skope = QUERY_READS_WITH_SKOPE.out.results
 }

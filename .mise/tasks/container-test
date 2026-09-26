@@ -11,6 +11,7 @@ docker run --rm nrminor/silly-fast-bfx:dev bash -euo pipefail -c '
   sylph --version
   bqtools --version
   alignoth --version
+  ktImportText 2>&1 | grep -q "KronaTools 2.8.1"
   for excluded in mise pixi uv cargo nextflow nf-test; do
     ! command -v "$excluded" >/dev/null
   done

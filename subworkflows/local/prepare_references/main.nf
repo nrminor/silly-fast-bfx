@@ -55,6 +55,7 @@ workflow PREPARE_REFERENCES {
 
         def normalized = reference + [
             sample_sketch: sample_sketch,
+            taxonomy: reference.taxonomy ? ([krona: true] + reference.taxonomy) : null,
             profile: [
                 minimum_ani: 95,
                 min_count_correct: 3,

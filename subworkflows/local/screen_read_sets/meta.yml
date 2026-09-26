@@ -12,6 +12,8 @@ components:
   - sketch_reads_with_sylph
   - profile_reads_with_sylph
   - summarize_sylph_taxonomy
+  - render_sylph_taxonomy_with_krona
+  - render_combined_sylph_taxonomy_with_krona
   - query_reads_with_skope
 input:
   - input_reads:
@@ -45,6 +47,12 @@ output:
   - sylph_taxonomy:
       type: file
       description: Rank-aggregated taxonomy profiles for meaningful configured raw Sylph profiles.
+  - sylph_krona:
+      type: file
+      description: Optional standalone per-sample/read-set Krona taxonomy charts.
+  - sylph_krona_combined:
+      type: file
+      description: Optional separate-dataset all-sample Krona charts per Sylph reference.
   - skope:
       type: file
       description: Skope query results with separate read-set and reference metadata.

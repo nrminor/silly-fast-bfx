@@ -1,0 +1,47 @@
+nextflow_process {
+    name "Render Sylph taxonomy datasets together with Krona"
+    script "../modules/local/render_combined_sylph_taxonomy_with_krona/main.nf"
+    process "RENDER_COMBINED_SYLPH_TAXONOMY_WITH_KRONA"
+    tag "modules"
+    tag "modules_local"
+
+    test("retains each sample percentage as a separate dataset") {
+        when {
+            process {
+                """
+                input[0] = [
+                    [id: 'ref-a'],
+                    ['sample-a__input', 'sample-b__deacon-host'],
+                    [file("\$baseDir/tests/data/sylph/krona-sample-a.tsv"), file("\$baseDir/tests/data/sylph/krona-sample-b.tsv")],
+                ]
+                """
+            }
+        }
+        then {
+            def chart = file(process.out.charts[0][1]).text
+            assertAll(
+                { assert process.success },
+                { assert file(process.out.charts[0][1]).name == 'all-samples.krona.html' },
+                { assert chart =~ /<dataset>sample-a__input<\/dataset>\s*<dataset>sample-b__deacon-host<\/dataset>/ },
+                { assert chart.contains('<magnitude><val>100.1438</val><val>99.9353</val></magnitude>') },
+                { assert !chart.contains('<val>200.0791</val>') },
+            )
+        }
+    }
+
+    test("one available sample still receives its own all-samples chart") {
+        when {
+            process {
+                """
+                input[0] = [[id: 'ref-a'], ['sample-a__input'], [file("\$baseDir/tests/data/sylph/krona-sample-a.tsv")]]
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert process.success },
+                { assert file(process.out.charts[0][1]).text.contains('<magnitude><val>100.1438</val></magnitude>') },
+            )
+        }
+    }
+}

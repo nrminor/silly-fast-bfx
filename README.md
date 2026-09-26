@@ -47,7 +47,10 @@ results/
 │   └── reads/<reference-id>/<sample-id>.fastq.gz
 ├── sylph/
 │   ├── profiles/<reference-id>/<sample-id>__<read-set>.profile.tsv
-│   └── taxonomy/<reference-id>/<sample-id>__<read-set>.sylphmpa
+│   └── taxonomy/<reference-id>/
+│       ├── <sample-id>__<read-set>.sylphmpa
+│       ├── <sample-id>__<read-set>.krona.html (when enabled and nonempty)
+│       └── all-samples.krona.html (when at least one chart exists)
 ├── skope/<reference-id>/<sample-id>__<read-set>.skope.tsv
 └── mapping/<reference-id>/<sample-id>/
     ├── <sample-id>__<profile-read-set>.selected.fasta
@@ -63,6 +66,8 @@ results/
 `pipeline_info/` preserves the submitted samplesheet, records workflow and tool versions, and contains Nextflow execution reports. Each `source.sha256` records the observed SHA-256 digest and basename of every source used by that reference specification, including Sylph taxonomy metadata when supplied.
 
 Deacon publishes its official JSON summary and one retained FASTQ for every sample/reference combination. This includes official summaries and valid empty FASTQs when no records pass. Sylph publishes raw profiles even when they contain only the header; taxonomy output is emitted only when the profile has data rows and the reference specification includes taxonomy metadata. Skope TSVs contain target-level rows and never include a `TOTAL` row. Mapping selection reports in the Nextflow task work directory distinguish filtered-out, resolved, and unresolved `Contig_name` values; a selection has no mapping successor unless it resolves records. In filenames, `<read-set>` is `input` or `deacon-<deacon-id>`.
+
+With Sylph taxonomy metadata configured, `taxonomy.krona` defaults to `true`. Set `taxonomy: {metadata: [...], krona: false}` on a reference specification to keep its `.sylphmpa` summaries without rendering charts. Each standalone HTML chart uses the reported, unscaled `relative_abundance` percentage points from canonical `d__` through `s__` taxonomic ranks only. Cumulative ancestors are counted once; positive parent mass without a reported descendant remains at that parent. `t__` paths and embedded reference-header metadata are excluded. The all-samples chart has independently selectable datasets for each available sample/read set **within the same Sylph reference specification**, rather than summing percentages across samples. If canonical abundance is zero or absent, no chart or comparative dataset is produced. The intermediate Krona TSV remains a work artifact.
 
 Built indexes and databases, sample sketches, CBQ read encodings, and downloaded input FASTQs remain Nextflow work artifacts rather than published results.
 
@@ -165,6 +170,7 @@ The `docker` and `apptainer` profiles enable their respective runtimes while lea
 | [Deacon](https://github.com/bede/deacon) | Builds minimizer indexes and produces filtered read sets. |
 | [Sylph](https://github.com/bluenote-1577/sylph) | Builds databases, creates sample sketches, and profiles selected read sets. |
 | [sylph-tax](https://github.com/bluenote-1577/sylph-tax) | Converts meaningful Sylph profiles into taxonomy summaries using explicit metadata. |
+| [Krona](https://github.com/marbl/Krona) | Renders standalone canonical-rank taxonomy charts for configured Sylph references. |
 | [Skope](https://github.com/bede/skope) | Builds query indexes and reports target-level containment for selected read sets. |
 
 Skope is built from pinned upstream revision `c016a1fd2441ee16227f9031d636333be35bae74` to support `--all-kmers`, which is not included in release 0.5.0. Rebuild query indexes made with Skope 0.4.0: the upstream serialized header changed. Container runs also require a monoimage rebuilt with this pin; an older image does not gain flag support from pipeline configuration alone.
