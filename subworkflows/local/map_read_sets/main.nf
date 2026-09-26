@@ -103,7 +103,7 @@ workflow MAP_READ_SETS {
     STORE_CLASSIFIED_READS(ch_read_store_jobs)
 
     ch_pileup_jobs = SUMMARIZE_MAPPING_COVERAGE.out.coverage
-        .filter { meta, reference, fasta, bam, csi, counts, coverage, intervals -> reference.pileups?.enabled != false }
+        .filter { meta, reference, fasta, bam, csi, counts, coverage, intervals -> reference.pileups?.enabled == true }
         .map { meta, reference, fasta, bam, csi, counts, coverage, intervals ->
             tuple(
                 meta,

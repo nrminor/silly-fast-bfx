@@ -114,7 +114,7 @@ workflow PREPARE_REFERENCES {
                 ont: [preset: 'map-ont', max_secondary: 5, secondary_score_ratio: 0.8] + (reference.align?.ont ?: [:]),
                 illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5] + (reference.align?.illumina ?: [:]),
             ],
-            pileups: [enabled: true, max_read_depth: 500] + (reference.pileups ?: [:]),
+            pileups: [enabled: false, max_read_depth: 500] + (reference.pileups ?: [:]),
             read_store: [enabled: true, reference_allowlist: null] + (reference.read_store ?: [:]),
         ]
     }

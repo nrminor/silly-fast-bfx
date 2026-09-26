@@ -655,6 +655,7 @@ nextflow_workflow {
                     read_sets: [input: true],
                     select: [sequence_abundance: [min: 1.0]],
                     align: [ont: [max_secondary: 2], illumina: [secondary_score_ratio: 0.7]],
+                    pileups: [max_read_depth: 42],
                 ]]
                 """
             }
@@ -667,6 +668,7 @@ nextflow_workflow {
                 { assert prepared[0].select == [sequence_abundance: [min: 1.0, max: null], adjusted_ani: [min: null, max: null]] },
                 { assert prepared[0].align.ont == [preset: 'map-ont', max_secondary: 2, secondary_score_ratio: 0.8] },
                 { assert prepared[0].align.illumina == [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.7] },
+                { assert prepared[0].pileups == [enabled: false, max_read_depth: 42] },
             )
         }
     }
