@@ -59,7 +59,8 @@ workflow PREPARE_REFERENCES {
             profile: [
                 minimum_ani: 95,
                 min_count_correct: 3,
-                min_number_kmers: 50,
+                min_reference_kmers: 50,
+                min_matching_kmers: 7,
                 estimate_unknown: false,
                 estimate_read_counts: false,
                 read_seq_id: null,
@@ -275,6 +276,7 @@ workflow PREPARE_REFERENCES {
         .map { reference, sources, fastas ->
             tuple(
                 [
+                    tool: [name: 'sylph', version: '1.0.0'],
                     sources: sources.collect { source ->
                         [
                             observed_sha256: source.observed_sha256,

@@ -73,7 +73,7 @@ Built indexes and databases, sample sketches, CBQ read encodings, and downloaded
 
 ## Pipeline Configuration
 
-The params YAML names the samplesheet and declares tool-specific reference specifications. Start from the [example YAML](assets/params.example.yaml); use [`nextflow_schema.json`](nextflow_schema.json) for the complete parameter contract and [`assets/samplesheet_schema.json`](assets/samplesheet_schema.json) for the samplesheet contract rather than copying every scientific option into a run guide.
+The params YAML names the samplesheet and declares tool-specific reference specifications. Start from the [example YAML](assets/params.example.yaml); use [`nextflow_schema.json`](nextflow_schema.json) for the complete parameter contract and [`assets/samplesheet_schema.json`](assets/samplesheet_schema.json) for the samplesheet contract rather than copying every scientific option into a run guide. For Sylph, `profile.min_matching_kmers` sets the minimum number of sampled reference k-mers matching the reads (default 7, including 0 as an override); `profile.min_reference_kmers` separately limits reference sketch size (default 50).
 
 Set `work_dir: /scratch/my-run/work` in the params YAML to choose Nextflow's work directory without passing `-work-dir`. When omitted, it defaults to `NXF_WORK` when set, otherwise `work/` in the launch directory. This is separate from `results`, which controls the published results bundle.
 
@@ -84,7 +84,7 @@ bqtools:
   block_size: 1M
 ```
 
-Use a positive integer string in bytes (for example, `"131072"`) or an integer with a `K`, `M`, or `G` suffix (powers of 1024, case-insensitive). The size is in bytes, not bases or records. BQTools 0.5.14 concatenation inherits the input CBQ header's block size; its `cat --block-size` flag does not override that size. All inputs to concatenation are encoded with the same run-wide setting.
+Use a positive integer string in bytes (for example, `"131072"`) or an integer with a `K`, `M`, or `G` suffix (powers of 1024, case-insensitive). The size is in bytes, not bases or records. BQTools concatenation inherits the input CBQ header's block size; its `cat --block-size` flag does not override that size. All inputs to concatenation are encoded with the same run-wide setting.
 
 The samplesheet supports three source modes. For users in the O'Connor group, this is the same samplesheet format accepted by NVD:
 

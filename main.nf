@@ -98,7 +98,8 @@ workflow {
             'sample sketch compression': reference.sample_sketch?.compression,
             'minimum ANI': reference.profile?.minimum_ani,
             'minimum k-mer multiplicity': reference.profile?.min_count_correct,
-            'minimum sampled k-mers': reference.profile?.min_number_kmers,
+            'minimum reference sketch k-mers': reference.profile?.min_reference_kmers,
+            'minimum matching k-mers': reference.profile?.min_matching_kmers,
         ], colors)
     }.flatten()
 

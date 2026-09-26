@@ -382,11 +382,17 @@
           "default": 3,
           "description": "Minimum k-mer multiplicity used for coverage correction; higher values favor precision over sensitivity."
         },
-        "min_number_kmers": {
+        "min_reference_kmers": {
           "type": "number",
           "minimum": 0,
           "default": 50,
-          "description": "Exclude reference genomes represented by fewer than this many sampled k-mers."
+          "description": "Exclude reference genomes whose sketch contains fewer than this many sampled k-mers (Sylph --min-number-kmers)."
+        },
+        "min_matching_kmers": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "description": "Minimum count of distinct sampled reference k-mers found in the sample for a hit (Sylph --min-contain); this is a count, not a fraction or the size of the reference sketch. Sylph applies it before statistical correction and again after profile reassignment."
         },
         "estimate_unknown": {
           "type": "boolean",

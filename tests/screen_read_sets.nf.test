@@ -157,9 +157,9 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 1, no_dedup: false], [id: 'sylph-c', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 1, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 1, no_dedup: false], [id: 'sylph-c', read_sets: [input: true, deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 1, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1000000000, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.empty()
@@ -258,9 +258,9 @@ nextflow_workflow {
                 }
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a1', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a2', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a1', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-a2', read_sets: [deacon_filtered: ['deacon-a']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'sylph-b', read_sets: [deacon_filtered: ['deacon-b']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.empty()
@@ -314,7 +314,7 @@ nextflow_workflow {
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
                     tuple(
                         [kmer_length: 31, compression: 2, no_dedup: false],
-                        [id: 'sylph-a', read_sets: [input: false, deacon_filtered: ['missing']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                        [id: 'sylph-a', read_sets: [input: false, deacon_filtered: ['missing']], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
                         database,
                     )
                 }
@@ -372,7 +372,7 @@ nextflow_workflow {
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.map { build, database ->
                     tuple(
                         [kmer_length: 31, compression: 2, no_dedup: false],
-                        [id: 'sylph-a', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                        [id: 'sylph-a', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
                         database,
                     )
                 }
@@ -423,9 +423,9 @@ nextflow_workflow {
                 input[1] = channel.empty()
                 input[2] = BUILD_SYLPH_DATABASE.out.databases.flatMap { build, database ->
                     [
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'configured', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'raw-only', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
-                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'empty', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'configured', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'raw-only', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
+                        tuple([kmer_length: 31, compression: 2, no_dedup: false], [id: 'empty', read_sets: [input: true, deacon_filtered: []], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1000000000, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], database),
                     ]
                 }
                 input[3] = channel.of(
@@ -478,7 +478,7 @@ nextflow_workflow {
                     ['ref-a', 'ref-b', 'opted-out', 'raw-only'].collect { id ->
                         tuple(
                             [kmer_length: 31, compression: 2, no_dedup: false],
-                            [id: id, read_sets: [input: true], taxonomy: [krona: id != 'opted-out'], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
+                            [id: id, read_sets: [input: true], taxonomy: [krona: id != 'opted-out'], sample_sketch: [kmer_length: 31, compression: 2, no_dedup: false], profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]],
                             database,
                         )
                     }

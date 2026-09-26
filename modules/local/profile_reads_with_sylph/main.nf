@@ -24,7 +24,8 @@ process PROFILE_READS_WITH_SYLPH {
         ${sketch} \
         --minimum-ani ${reference.profile.minimum_ani} \
         --min-count-correct ${reference.profile.min_count_correct} \
-        --min-number-kmers ${reference.profile.min_number_kmers} \
+        --min-number-kmers ${reference.profile.min_reference_kmers} \
+        --min-contain ${reference.profile.min_matching_kmers} \
         ${estimate_unknown_arg} \
         ${estimate_read_counts_arg} \
         ${read_seq_id_arg} \

@@ -129,7 +129,7 @@ nextflow_pipeline {
                     read_sets: [input: true],
                     database: [kind: "local", path: "${projectDir}/tests/data/sylph/prebuilt.syldb"],
                     sample_sketch: [compression: 50],
-                    profile: [minimum_ani: 90, min_count_correct: 3, min_number_kmers: 1],
+                    profile: [minimum_ani: 90, min_count_correct: 3, min_reference_kmers: 1, min_matching_kmers: 0],
                 ]]]
                 skope = [references: [[
                     id: "skope-a",
@@ -159,7 +159,8 @@ nextflow_pipeline {
                 { assert output.contains('sample sketch compression: 50') },
                 { assert output.contains('minimum ANI: 90') },
                 { assert output.contains('minimum k-mer multiplicity: 3') },
-                { assert output.contains('minimum sampled k-mers: 1') },
+                { assert output.contains('minimum reference sketch k-mers: 1') },
+                { assert output.contains('minimum matching k-mers: 0') },
                 { assert output.contains('syncmer abundance thresholds: 2, 3, 5') },
                 { assert output.contains('confidence intervals: enabled') },
                 { assert output.contains('nrminor/silly-fast-bfx:dev') },
@@ -465,6 +466,7 @@ nextflow_pipeline {
         when {
             params {
                 input = "$outputDir/sylph-source.csv"
+                results = "$outputDir/results"
                 sylph = [
                     references: [
                         [
@@ -473,7 +475,7 @@ nextflow_pipeline {
                             fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                             build: [kmer_length: 31, compression: 2, min_spacing: 2],
                             sample_sketch: [kmer_length: 31, compression: 2],
-                            profile: [min_count_correct: 1, min_number_kmers: 1],
+                            profile: [min_count_correct: 1, min_reference_kmers: 1],
                         ],
                         [
                             id: "reference-k21",
@@ -481,7 +483,7 @@ nextflow_pipeline {
                             fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                             build: [kmer_length: 21, compression: 2, min_spacing: 2],
                             sample_sketch: [kmer_length: 21, compression: 2],
-                            profile: [min_count_correct: 1, min_number_kmers: 1],
+                            profile: [min_count_correct: 1, min_reference_kmers: 1],
                         ],
                     ],
                 ]
@@ -495,6 +497,7 @@ nextflow_pipeline {
                 { assert workflow.trace.tasks().count { it.name.contains('SKETCH_READS_WITH_SYLPH') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('PROFILE_READS_WITH_SYLPH') } == 2 },
                 { assert workflow.trace.tasks().count { it.name.contains('SUMMARIZE_SYLPH_TAXONOMY') } == 0 },
+                { assert file("$outputDir/results/pipeline_info/software_versions.yml").text.contains('sylph: "1.0.0"') },
             )
         }
     }
@@ -523,7 +526,7 @@ nextflow_pipeline {
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
-                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        profile: [min_count_correct: 1, min_reference_kmers: 1],
                         taxonomy: [metadata: [[kind: "local", path: "${projectDir}/tests/data/sylph/taxonomy-a.tsv"]]],
                     ]],
                 ]
@@ -741,7 +744,7 @@ nextflow_pipeline {
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
-                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        profile: [min_count_correct: 1, min_reference_kmers: 1],
                     ]],
                 ]
                 skope = [
@@ -792,7 +795,7 @@ nextflow_pipeline {
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
-                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        profile: [min_count_correct: 1, min_reference_kmers: 1],
                     ]],
                 ]
                 mapping = [
@@ -843,7 +846,7 @@ nextflow_pipeline {
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
-                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        profile: [min_count_correct: 1, min_reference_kmers: 1],
                     ]],
                 ]
                 mapping = [
@@ -895,7 +898,7 @@ nextflow_pipeline {
                         sample_sketch: [no_dedup: true],
                         profile: [
                             min_count_correct: 2.5,
-                            min_number_kmers: 50.5,
+                            min_reference_kmers: 50.5,
                             estimate_unknown: true,
                             estimate_read_counts: true,
                             read_seq_id: 99.5,
@@ -970,6 +973,78 @@ nextflow_pipeline {
             }
         }
 
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("negative matching k-mer count is rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = "sample_id,srr,platform,fastq1,fastq2\nsample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,\n"
+        }
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                sylph = [references: [[id: 'reference-a', read_sets: [input: true], database: [kind: 'https', url: 'https://example.org/reference.syldb'], profile: [min_matching_kmers: -1]]]]
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("fractional matching k-mer count is rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = "sample_id,srr,platform,fastq1,fastq2\nsample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,\n"
+        }
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                sylph = [references: [[id: 'reference-a', read_sets: [input: true], database: [kind: 'https', url: 'https://example.org/reference.syldb'], profile: [min_matching_kmers: 0.5]]]]
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("obsolete Sylph reference count key is rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = "sample_id,srr,platform,fastq1,fastq2\nsample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,\n"
+        }
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                sylph = [references: [[id: 'reference-a', read_sets: [input: true], database: [kind: 'https', url: 'https://example.org/reference.syldb'], profile: [min_number_kmers: 50]]]]
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("obsolete Sylph containment key is rejected") {
+        setup {
+            def samplesheet = file("$outputDir/exact.csv")
+            samplesheet.parentFile.mkdirs()
+            samplesheet.text = "sample_id,srr,platform,fastq1,fastq2\nsample-a,,illumina,${projectDir}/tests/data/fastq/single.fastq,\n"
+        }
+        when {
+            params {
+                input = "$outputDir/exact.csv"
+                skip_sylph = true
+                sylph = [references: [[id: 'reference-a', read_sets: [input: true], database: [kind: 'https', url: 'https://example.org/reference.syldb'], profile: [min_contain: 7]]]]
+            }
+        }
         then {
             assert workflow.failed
         }

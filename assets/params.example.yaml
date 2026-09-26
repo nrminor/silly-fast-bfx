@@ -38,7 +38,8 @@ sylph:
       profile:
         minimum_ani: 95
         min_count_correct: 3
-        min_number_kmers: 50
+        min_reference_kmers: 50
+        # min_matching_kmers: 0 # Optional: allow hits with fewer than the default 7 matching k-mers.
         estimate_unknown: false
         estimate_read_counts: false
         read_seq_id: null

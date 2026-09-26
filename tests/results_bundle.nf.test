@@ -43,7 +43,7 @@ nextflow_pipeline {
                         fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                         build: [kmer_length: 31, compression: 2, min_spacing: 2],
                         sample_sketch: [kmer_length: 31, compression: 2],
-                        profile: [min_count_correct: 1, min_number_kmers: 1],
+                        profile: [min_count_correct: 1, min_reference_kmers: 1],
                         taxonomy: [metadata: [[kind: "local", path: "${projectDir}/tests/data/sylph/taxonomy-a.tsv"]]],
                     ]],
                 ]
@@ -131,7 +131,7 @@ nextflow_pipeline {
                     fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
                     build: [kmer_length: 31, compression: 2, min_spacing: 2],
                     sample_sketch: [kmer_length: 31, compression: 2],
-                    profile: [min_count_correct: 1, min_number_kmers: 1],
+                    profile: [min_count_correct: 1, min_reference_kmers: 1],
                 ]]]
                 mapping = [references: [[
                     id: "mapping-a",

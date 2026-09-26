@@ -27,7 +27,7 @@ nextflow_process {
                 input[0] = SKETCH_READS_WITH_SYLPH.out.sketches
                     .combine(BUILD_SYLPH_DATABASE.out.databases)
                     .map { sampleSketch, meta, sketch, build, database ->
-                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], sketch, database)
+                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], sketch, database)
                     }
                 """
             }
@@ -43,6 +43,50 @@ nextflow_process {
                 { assert file(output[2]).readLines().size() == 2 },
                 { assert file(output[2]).readLines()[1].startsWith('sample-a__input\t') },
                 { assert output[3] == 'true' },
+            )
+        }
+    }
+
+    test("applies an inclusive matching k-mer boundary and preserves explicit zero") {
+        setup {
+            run("BUILD_SYLPH_DATABASE") {
+                script "../modules/local/build_sylph_database/main.nf"
+                process {
+                    """input[0] = [[sources: [[observed_sha256: 'fixture', logical_basename: 'reference.fa']], settings: [kmer_length: 31, compression: 2, individual_records: false, min_spacing: 2]], [file("\$baseDir/tests/data/sylph/reference.fa")]]"""
+                }
+            }
+            run("SKETCH_READS_WITH_SYLPH") {
+                script "../modules/local/sketch_reads_with_sylph/main.nf"
+                process {
+                    """input[0] = [[kmer_length: 31, compression: 2, no_dedup: false], [id: 'sample-a', platform: 'ont', read_set: 'input'], [file("\$baseDir/tests/data/sylph/reads.fastq")]]"""
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = SKETCH_READS_WITH_SYLPH.out.sketches
+                    .combine(BUILD_SYLPH_DATABASE.out.databases)
+                    .flatMap { sampleSketch, meta, sketch, build, database ->
+                        [0, 111, 112].collect { minimum ->
+                            tuple(meta, [id: 'reference-' + minimum, profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: minimum, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], sketch, database)
+                        }
+                    }
+                """
+            }
+        }
+
+        then {
+            def outputs = process.out.profiles.collectEntries { meta, reference, profile, hasRows ->
+                [(reference.id): [lines: file(profile).readLines(), hasRows: hasRows]]
+            }
+            assertAll(
+                { assert process.success },
+                { assert outputs['reference-0'].hasRows == 'true' && outputs['reference-0'].lines.size() == 2 },
+                { assert outputs['reference-111'].hasRows == 'true' && outputs['reference-111'].lines.size() == 2 },
+                { assert outputs['reference-111'].lines[1].split('\t')[11] == '111/115' },
+                { assert outputs['reference-112'].hasRows == 'false' && outputs['reference-112'].lines.size() == 1 },
             )
         }
     }
@@ -69,7 +113,7 @@ nextflow_process {
                 input[0] = SKETCH_READS_WITH_SYLPH.out.sketches
                     .combine(BUILD_SYLPH_DATABASE.out.databases)
                     .map { sampleSketch, meta, sketch, build, database ->
-                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1000000000, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], sketch, database)
+                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1000000000, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], sketch, database)
                     }
                 """
             }
@@ -107,7 +151,7 @@ nextflow_process {
                 input[0] = SKETCH_READS_WITH_SYLPH.out.sketches
                     .combine(BUILD_SYLPH_DATABASE.out.databases)
                     .map { sampleSketch, meta, sketch, build, database ->
-                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_number_kmers: 1, estimate_unknown: true, estimate_read_counts: true, read_seq_id: 99.5]], sketch, database)
+                        tuple(meta, [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 1, min_reference_kmers: 1, min_matching_kmers: 7, estimate_unknown: true, estimate_read_counts: true, read_seq_id: 99.5]], sketch, database)
                     }
                 """
             }
@@ -131,7 +175,7 @@ nextflow_process {
     test("stubs a distinguishable header-only profile") {
         when {
             process {
-                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'deacon_filtered', deacon_id: 'host'], [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 3, min_number_kmers: 50, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], file("\$baseDir/tests/data/sylph/reference.fa"), file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
+                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'deacon_filtered', deacon_id: 'host'], [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 3, min_reference_kmers: 50, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: false, read_seq_id: null]], file("\$baseDir/tests/data/sylph/reference.fa"), file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
             }
             options '-stub-run'
         }
@@ -150,7 +194,7 @@ nextflow_process {
     test("stubs the true-coverage header implied by read-count estimation") {
         when {
             process {
-                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'input'], [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 3, min_number_kmers: 50, estimate_unknown: false, estimate_read_counts: true, read_seq_id: null]], file("\$baseDir/tests/data/sylph/reference.fa"), file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
+                """input[0] = [[id: 'sample-a', platform: 'ont', read_set: 'input'], [id: 'reference-a', profile: [minimum_ani: 95, min_count_correct: 3, min_reference_kmers: 50, min_matching_kmers: 7, estimate_unknown: false, estimate_read_counts: true, read_seq_id: null]], file("\$baseDir/tests/data/sylph/reference.fa"), file("\$baseDir/tests/data/sylph/prebuilt.syldb")]"""
             }
             options '-stub-run'
         }

@@ -26,8 +26,10 @@ jobs:
 
       - name: Set up locked project tools
         uses: jdx/mise-action@v4
+        env:
+          RUSTFLAGS: "-C target-feature=+avx2"
         with:
-          version: 2026.8.6
+          version: 2026.9.11
           cache: true
           bootstrap: true
           bootstrap_skip: repos
