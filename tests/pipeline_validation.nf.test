@@ -815,7 +815,8 @@ nextflow_pipeline {
         }
     }
 
-    test("publishes a per-sample selected mapping FASTA and compact report") {
+    test("publishes a per-sample selected mapping FASTA without its diagnostic report") {
+        tag "mapping_publication"
         setup {
             def samplesheet = file("$outputDir/mapping-selection.csv")
             samplesheet.parentFile.mkdirs()
@@ -860,7 +861,7 @@ nextflow_pipeline {
                 { assert workflow.success },
                 { assert workflow.trace.tasks().count { it.name.contains('SUBSET_MAPPING_REFERENCE') } == 1 },
                 { assert file("$selection_dir/sample-a__input.selected.fasta").text.startsWith('>synthetic-reference') },
-                { assert file("$selection_dir/sample-a__input.selection.tsv").text.contains('synthetic-reference\tresolved') },
+                { assert !file("$selection_dir/sample-a__input.selection.tsv").exists() },
             )
         }
     }

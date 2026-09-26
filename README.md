@@ -9,7 +9,7 @@ The pipeline begins with one input read set per samplesheet row. It can then run
 1. **Deacon** builds or accepts a minimizer index and filters every input read set. Each Deacon reference specification produces a distinct filtered read set for each sample.
 2. **Sylph** sketches selected read sets, profiles each sample sketch against a source-built or prebuilt database, and optionally applies configured taxonomy metadata to meaningful profiles.
 3. **Skope** queries selected read sets against a source-built or prebuilt query index and reports one row per target.
-4. **Mapping** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA, then competitively maps independently streamed selected read sets with minimap2. It publishes the selected FASTA, compact selection report, coordinate-sorted BAM/CSI, mapper counts, per-reference coverage/Sylph comparisons, depth intervals, optional Alignoth pileups, and a post-alignment classified-read Parquet table.
+4. **Mapping** uses one configured Sylph profile per sample to select exact full-header records from one explicit FASTA, then competitively maps independently streamed selected read sets with minimap2. It publishes the selected FASTA, coordinate-sorted BAM/CSI, mapper counts, per-reference coverage/Sylph comparisons, depth intervals, optional Alignoth pileups, and a post-alignment classified-read Parquet table.
 
 Read-set routing is explicit for every Sylph and Skope reference specification. Its `read_sets` block selects the input read set, named Deacon-filtered read sets, or both. The pipeline does not implicitly send every filtered read set to every search. Empty Deacon FASTQs are retained in the results bundle for inspection, but empty filtered read sets are not routed to Sylph or Skope.
 
@@ -51,16 +51,18 @@ results/
 ├── skope/<reference-id>/<sample-id>__<read-set>.skope.tsv
 └── mapping/<reference-id>/<sample-id>/
     ├── <sample-id>__<profile-read-set>.selected.fasta
-    ├── <sample-id>__<profile-read-set>.selection.tsv
     ├── <sample-id>__<read-set>__<reference-id>.bam
     ├── <sample-id>__<read-set>__<reference-id>.bam.csi
     ├── <sample-id>__<read-set>__<reference-id>.counts.json
-    └── <sample-id>__<read-set>__<reference-id>.classified-reads.parquet
+    ├── <sample-id>__<read-set>__<reference-id>.coverage.tsv
+    ├── <sample-id>__<read-set>__<reference-id>.coverage.intervals.tsv
+    ├── <sample-id>__<read-set>__<reference-id>.classified-reads.parquet
+    └── <sample-id>__<read-set>__<reference-id>.pileups/ (when enabled)
 ```
 
 `pipeline_info/` preserves the submitted samplesheet, records workflow and tool versions, and contains Nextflow execution reports. Each `source.sha256` records the observed SHA-256 digest and basename of every source used by that reference specification, including Sylph taxonomy metadata when supplied.
 
-Deacon publishes its official JSON summary and one retained FASTQ for every sample/reference combination. This includes official summaries and valid empty FASTQs when no records pass. Sylph publishes raw profiles even when they contain only the header; taxonomy output is emitted only when the profile has data rows and the reference specification includes taxonomy metadata. Skope TSVs contain target-level rows and never include a `TOTAL` row. Mapping selection reports distinguish filtered-out, resolved, and unresolved `Contig_name` values; a selection has no mapping successor unless it resolves records. In filenames, `<read-set>` is `input` or `deacon-<deacon-id>`.
+Deacon publishes its official JSON summary and one retained FASTQ for every sample/reference combination. This includes official summaries and valid empty FASTQs when no records pass. Sylph publishes raw profiles even when they contain only the header; taxonomy output is emitted only when the profile has data rows and the reference specification includes taxonomy metadata. Skope TSVs contain target-level rows and never include a `TOTAL` row. Mapping selection reports in the Nextflow task work directory distinguish filtered-out, resolved, and unresolved `Contig_name` values; a selection has no mapping successor unless it resolves records. In filenames, `<read-set>` is `input` or `deacon-<deacon-id>`.
 
 Built indexes and databases, sample sketches, CBQ read encodings, and downloaded input FASTQs remain Nextflow work artifacts rather than published results.
 

@@ -103,6 +103,86 @@ nextflow_pipeline {
         }
     }
 
+    test("publishes only mapping outputs under default copy mode") {
+        tag "mapping_publication"
+        setup {
+            def samplesheet = file("$outputDir/mapping.csv")
+            samplesheet.parentFile.mkdirs()
+            def reads = file("$outputDir/reads.fastq.gz")
+            new java.util.zip.GZIPOutputStream(reads.newOutputStream()).withCloseable { gzip ->
+                gzip.write(file("${projectDir}/tests/data/sylph/reads.fastq").bytes)
+            }
+            samplesheet.text = [
+                "sample_id,srr,platform,fastq1,fastq2",
+                "sample-a,,nanopore,$reads,",
+            ].join('\n') + '\n'
+        }
+
+        when {
+            params {
+                input = "$outputDir/mapping.csv"
+                results = "$outputDir/results"
+                sylph = [references: [[
+                    id: "sylph-a",
+                    read_sets: [input: true],
+                    fastas: [[kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"]],
+                    build: [kmer_length: 31, compression: 2, min_spacing: 2],
+                    sample_sketch: [kmer_length: 31, compression: 2],
+                    profile: [min_count_correct: 1, min_number_kmers: 1],
+                ]]]
+                mapping = [references: [[
+                    id: "mapping-a",
+                    profile: [reference: "sylph-a", read_set: [input: true]],
+                    fasta: [kind: "local", path: "${projectDir}/tests/data/sylph/reference.fa"],
+                    read_sets: [input: true],
+                    pileups: [enabled: true],
+                    read_store: [enabled: true],
+                ]]]
+            }
+        }
+
+        then {
+            def results = file("$outputDir/results")
+            def published = []
+            results.eachFileRecurse { path ->
+                if (path.isFile()) {
+                    published << results.toPath().relativize(path.toPath()).toString()
+                }
+            }
+            def mapping = "mapping/mapping-a/sample-a/sample-a__input"
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().count { it.name.contains('SUBSET_MAPPING_REFERENCE') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('MAP_READS_WITH_MINIMAP2') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('SUMMARIZE_MAPPING_COVERAGE') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH') } == 1 },
+                { assert workflow.trace.tasks().count { it.name.contains('STORE_CLASSIFIED_READS') } == 1 },
+                {
+                    assert published as Set == [
+                        'pipeline_info/samplesheet.csv',
+                        'pipeline_info/software_versions.yml',
+                        'pipeline_info/execution_report.html',
+                        'pipeline_info/execution_timeline.html',
+                        'pipeline_info/pipeline_dag.html',
+                        'references/sylph/sylph-a/source.sha256',
+                        'references/mapping/mapping-a/source.sha256',
+                        'sylph/profiles/sylph-a/sample-a__input.profile.tsv',
+                        "${mapping}.selected.fasta",
+                        "${mapping}__mapping-a.bam",
+                        "${mapping}__mapping-a.bam.csi",
+                        "${mapping}__mapping-a.counts.json",
+                        "${mapping}__mapping-a.coverage.tsv",
+                        "${mapping}__mapping-a.coverage.intervals.tsv",
+                        "${mapping}__mapping-a.classified-reads.parquet",
+                        "${mapping}__mapping-a.pileups/synthetic-reference.alignoth.html",
+                    ] as Set
+                },
+                { assert file("$outputDir/results/${mapping}.selected.fasta").text.startsWith('>synthetic-reference') },
+                { assert file("$outputDir/results/${mapping}__mapping-a.coverage.tsv").readLines()[0].contains('supporting_read_count') },
+            )
+        }
+    }
+
     test("publishes provenance for SRA inputs without configured searches") {
         setup {
             def samplesheet = file("$outputDir/sra-samplesheet.csv")
