@@ -5,6 +5,49 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
+    test("associates the original read payload with complete long reference names from minimap2") {
+        tag "long_reference_names"
+        setup {
+            def sequence = file("$baseDir/tests/data/mapping/ambiguous-reference.fa").readLines()[1]
+            file("$outputDir/long-names.fa").text = [256, 257]
+                .collect { length -> ">" + "r" * length + "\n" + sequence + "\n" }
+                .join('')
+            file("$outputDir/long-names.allowlist.txt").text = 'r' * 257 + '\n'
+            run("MAP_READS_WITH_MINIMAP2") {
+                script "../modules/local/map_reads_with_minimap2/main.nf"
+                process {
+                    """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'mapping-a', align: [illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("$outputDir/long-names.fa"), file("\$baseDir/tests/data/mapping/selection.profile.tsv"), [file("\$baseDir/tests/data/mapping/lanes/r1/reads.fastq")]]"""
+                }
+            }
+        }
+        when {
+            process {
+                """input[0] = MAP_READS_WITH_MINIMAP2.out.read_store_sources.map { meta, reference, fasta, bam, reads -> tuple(meta, reference, fasta, bam, reads, file("$outputDir/long-names.allowlist.txt")) }"""
+            }
+        }
+        then {
+            def output = process.out.stores[0]
+            def query = '''
+import json
+import polars as pl
+table = pl.read_parquet(r"''' + file(output[2]) + '''")
+print(json.dumps(table.select("read_key", "reference_id", "reference_name", "original_header", "sequence", "quality", "plus_line", "is_primary").to_dicts()))
+'''
+            def result = ['uv', 'run', 'python', '-c', query].execute()
+            assert result.waitFor() == 0 : result.err.text
+            def rows = new groovy.json.JsonSlurper().parseText(result.in.text)
+            def source = file("$baseDir/tests/data/mapping/lanes/r1/reads.fastq").readLines()
+            assertAll(
+                { assert process.success },
+                { assert rows.size() == 2 },
+                { assert rows.collect { it.reference_id } as Set == ['r' * 256, 'r' * 257] as Set },
+                { assert rows.collect { it.reference_name } as Set == ['r' * 256, 'r' * 257] as Set },
+                { assert rows.every { it.read_key == 'same/1' && it.original_header == source[0].substring(1) && it.sequence == source[1] && it.quality == source[3] && it.plus_line == '' } },
+                { assert rows.count { it.is_primary } == 1 },
+            )
+        }
+    }
+
     test("retains original payload and all placements for reads selected by exact reference name") {
         setup {
             def bam = file("$outputDir/classified-reads.bam")

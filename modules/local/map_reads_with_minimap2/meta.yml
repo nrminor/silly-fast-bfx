@@ -14,7 +14,7 @@ input:
       description: Mapping reference specification and platform-specific mapper settings.
   - fasta:
       type: file
-      description: Selected competitive mapping-reference FASTA.
+      description: Selected competitive mapping-reference FASTA, indexed in memory to preserve names without a serialized .mmi round trip.
   - profile:
       type: file
       description: Original Sylph profile that selected this sample-local FASTA.

@@ -5,6 +5,47 @@ nextflow_process {
     tag "modules"
     tag "modules_local"
 
+    test("maps reads against complete 255, 256, 257 and 512 byte FASTA identifiers") {
+        tag "long_reference_names"
+        setup {
+            def sequence = file("$baseDir/tests/data/mapping/ambiguous-reference.fa").readLines()[1]
+            file("$outputDir/long-names.fa").text = [255, 256, 257, 512]
+                .collect { length -> ">" + "r" * length + "\n" + sequence + "\n" }
+                .join('')
+        }
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', platform: 'illumina', read_set: 'input'], [id: 'mapping-a', align: [illumina: [preset: 'sr', max_secondary: 20, secondary_score_ratio: 0.5]]], file("$outputDir/long-names.fa"), file("\$baseDir/tests/data/mapping/selection.profile.tsv"), [file("\$baseDir/tests/data/mapping/lanes/r1/reads.fastq")]]"""
+            }
+        }
+        then {
+            def output = process.out.alignments[0]
+            def bam = file(output[4]).toString()
+            def header = ['samtools', 'view', '-H', bam].execute().text.readLines()
+            def records = ['samtools', 'view', bam].execute().text.readLines()
+            def expected = [255, 256, 257, 512].collect { 'r' * it } as Set
+            def referenceNames = header.findAll { it.startsWith('@SQ\t') }
+                .collect { it.split('\t').find { field -> field.startsWith('SN:') }.substring(3) } as Set
+            def mappedNames = records.findAll { (it.split('\t')[1].toInteger() & 4) == 0 }
+                .collect { it.split('\t')[2] } as Set
+            def indexedCounts = expected.collectEntries { name ->
+                def query = ['samtools', 'view', '-c', bam, name].execute()
+                assert query.waitFor() == 0 : query.err.text
+                [(name): query.in.text.trim().toInteger()]
+            }
+            assertAll(
+                { assert process.success },
+                { assert file(output[5]).exists() },
+                { assert file(output[6]).text == '{"total_reads": 1, "mapped_reads": 1, "unmapped_reads": 0}\n' },
+                { assert referenceNames == expected },
+                { assert mappedNames == expected },
+                { assert indexedCounts.keySet() == expected && indexedCounts.values().every { it >= 1 } },
+                { assert records.size() >= 4 },
+                { assert records.every { it.split('\t')[0] == 'same/1' } },
+            )
+        }
+    }
+
     test("maps indexed same-basename lanes with secondary placements and distinct counts") {
         when {
             process {
