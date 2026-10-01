@@ -3,5 +3,7 @@
 set -euo pipefail
 
 uv run --locked ruff check bin
-uv run --locked ruff format --check bin
-uv run --locked ty check --error-on-warning --extra-search-path bin bin
+# These tests use stdlib unittest, and tests/ is not a Python package.
+uv run --locked ruff check --ignore INP001,PT009,PT027 tests/test_*.py
+uv run --locked ruff format --check bin tests/test_*.py
+uv run --locked ty check --error-on-warning --extra-search-path bin bin tests/test_*.py

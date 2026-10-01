@@ -21,12 +21,6 @@ input:
   - reads:
       type: file
       description: Original FASTQ files streamed directly to the mapper.
-  - collisions:
-      type: file
-      description: Ordered metadata-only mapper-name substitutions.
-  - read_count:
-      type: file
-      description: Total read-record count for the mapped read set.
 output:
   - alignments:
       type: file

@@ -21,9 +21,6 @@ input:
   - reads:
       type: file
       description: Original actual-mapped-read-set FASTQs, streamed only after BAM production.
-  - collisions:
-      type: file
-      description: Sparse ordinal-to-mapper-name substitutions from mapping identity preparation.
   - allowlist:
       type: file
       description: Optional zero-or-one path collection containing an exact full-reference-name allowlist for read-level existential inclusion.

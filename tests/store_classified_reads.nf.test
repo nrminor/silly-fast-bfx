@@ -15,7 +15,7 @@ nextflow_process {
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads.allowlist.txt")]"""
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.allowlist.txt")]"""
             }
         }
 
@@ -65,7 +65,7 @@ print(json.dumps({
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads-empty.allowlist.txt")]"""
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads-empty.allowlist.txt")]"""
             }
         }
 
@@ -90,7 +90,7 @@ print(json.dumps({
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty-file.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("$outputDir/empty.allowlist.txt")]"""
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-empty-file.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("$outputDir/empty.allowlist.txt")]"""
             }
         }
 
@@ -114,7 +114,7 @@ print(json.dumps({
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-punctuation.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), file("\$baseDir/tests/data/mapping/classified-reads-punctuation.allowlist.txt")]"""
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-punctuation.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads-punctuation.allowlist.txt")]"""
             }
         }
 
@@ -138,7 +138,7 @@ print(json.dumps({
 
         when {
             process {
-                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-unrestricted.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], file("\$baseDir/tests/data/mapping/classified-reads.collisions.tsv"), []]"""
+                """input[0] = [[id: 'sample-a', read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/classified-reads-reference.fa"), file("$outputDir/classified-reads-unrestricted.bam"), [file("\$baseDir/tests/data/mapping/classified-reads.fastq")], []]"""
             }
         }
 

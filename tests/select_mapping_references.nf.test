@@ -80,7 +80,6 @@ nextflow_workflow {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().count { it.name.contains('PREPARE_MAPPING_IDENTITIES') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('MAP_READS_WITH_MINIMAP2') } == 3 },
                 { assert workflow.trace.tasks().count { it.name.contains('RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH') } == 1 },
                 { assert workflow.trace.tasks().count { it.name.contains('STORE_CLASSIFIED_READS') } == 2 },

@@ -1,5 +1,4 @@
 include { SUBSET_MAPPING_REFERENCE } from '../../../modules/local/subset_mapping_reference'
-include { PREPARE_MAPPING_IDENTITIES } from '../../../modules/local/prepare_mapping_identities'
 include { MAP_READS_WITH_MINIMAP2 } from '../../../modules/local/map_reads_with_minimap2'
 include { SUMMARIZE_MAPPING_COVERAGE } from '../../../modules/local/summarize_mapping_coverage'
 include { RENDER_MAPPING_PILEUPS_WITH_ALIGNOTH } from '../../../modules/local/render_mapping_pileups_with_alignoth'
@@ -52,30 +51,11 @@ workflow MAP_READ_SETS {
         tuple([meta.id, source], meta, reads)
     }
 
-    ch_requested_read_sets = ch_available_read_sets
-        .combine(ch_selected_mapping_jobs.map { route, profile_meta, reference, fasta, profile -> tuple(route, true) }, by: 0)
-        .map { route, meta, reads, requested -> tuple(meta, reads) }
-        .unique { meta, reads -> [meta.id, meta.read_set, meta.deacon_id] }
-
-    PREPARE_MAPPING_IDENTITIES(ch_requested_read_sets)
-
-    ch_prepared_read_sets = PREPARE_MAPPING_IDENTITIES.out.identities
-        .filter { meta, reads, collisions, read_count, has_reads -> has_reads == 'true' }
-        .map { meta, reads, collisions, read_count, has_reads ->
-            def source = meta.read_set == 'input' ? 'input' : "deacon:${meta.deacon_id}"
-            tuple([meta.id, source], meta, reads, collisions, read_count)
-        }
-
-    ch_selected_prepared_read_sets = ch_selected_mapping_jobs
-        .combine(ch_prepared_read_sets, by: 0)
-        .map { route, profile_meta, reference, fasta, profile, mapping_meta, reads, collisions, read_count ->
-            tuple(route, profile_meta, reference, fasta, profile, mapping_meta, reads, collisions, read_count)
-        }
-
-    ch_alignment_jobs = ch_selected_prepared_read_sets
-        .map { route, profile_meta, reference, fasta, profile, mapping_meta, reads, collisions, read_count ->
+    ch_alignment_jobs = ch_selected_mapping_jobs
+        .combine(ch_available_read_sets, by: 0)
+        .map { route, profile_meta, reference, fasta, profile, mapping_meta, reads ->
             def profile_source = profile_meta.read_set == 'input' ? 'input' : "deacon:${profile_meta.deacon_id}"
-            tuple(mapping_meta + [profile_read_set: profile_source, sylph_estimate_read_counts: profile_meta.sylph_estimate_read_counts], reference, fasta, profile, reads, collisions, read_count)
+            tuple(mapping_meta + [profile_read_set: profile_source, sylph_estimate_read_counts: profile_meta.sylph_estimate_read_counts], reference, fasta, profile, reads)
         }
 
     MAP_READS_WITH_MINIMAP2(ch_alignment_jobs)
@@ -83,20 +63,20 @@ workflow MAP_READ_SETS {
     SUMMARIZE_MAPPING_COVERAGE(MAP_READS_WITH_MINIMAP2.out.alignments)
 
     ch_read_store_sources = MAP_READS_WITH_MINIMAP2.out.read_store_sources
-        .filter { meta, reference, fasta, bam, reads, collisions -> reference.read_store?.enabled != false }
+        .filter { meta, reference, fasta, bam, reads -> reference.read_store?.enabled != false }
     ch_unrestricted_read_store_jobs = ch_read_store_sources
-        .filter { meta, reference, fasta, bam, reads, collisions -> !reference.read_store?.reference_allowlist }
-        .map { meta, reference, fasta, bam, reads, collisions ->
-            tuple(meta, reference, fasta, bam, reads, collisions, [])
+        .filter { meta, reference, fasta, bam, reads -> !reference.read_store?.reference_allowlist }
+        .map { meta, reference, fasta, bam, reads ->
+            tuple(meta, reference, fasta, bam, reads, [])
         }
     ch_allowed_read_store_jobs = ch_read_store_sources
-        .filter { meta, reference, fasta, bam, reads, collisions -> reference.read_store?.reference_allowlist }
-        .map { meta, reference, fasta, bam, reads, collisions ->
-            tuple(reference.id, meta, reference, fasta, bam, reads, collisions)
+        .filter { meta, reference, fasta, bam, reads -> reference.read_store?.reference_allowlist }
+        .map { meta, reference, fasta, bam, reads ->
+            tuple(reference.id, meta, reference, fasta, bam, reads)
         }
         .combine(mapping_allowlists, by: 0)
-        .map { reference_id, meta, reference, fasta, bam, reads, collisions, allowlist ->
-            tuple(meta, reference, fasta, bam, reads, collisions, allowlist)
+        .map { reference_id, meta, reference, fasta, bam, reads, allowlist ->
+            tuple(meta, reference, fasta, bam, reads, allowlist)
         }
 
     ch_read_store_jobs = ch_unrestricted_read_store_jobs.mix(ch_allowed_read_store_jobs)

@@ -2,11 +2,11 @@ process MAP_READS_WITH_MINIMAP2 {
     tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
-    tuple val(meta), val(reference), path(fasta), path(profile), path(reads, stageAs: 'reads??????/*', arity: '1..*'), path(collisions), path(read_count)
+    tuple val(meta), val(reference), path(fasta), path(profile), path(reads, stageAs: 'reads??????/*', arity: '1..*')
 
     output:
     tuple val(meta), val(reference), path(fasta), path(profile), path('*.bam'), path('*.bam.csi'), path('*.counts.json'), emit: alignments
-    tuple val(meta), val(reference), path(fasta), path('*.bam'), path(reads), path(collisions), emit: read_store_sources
+    tuple val(meta), val(reference), path(fasta), path('*.bam'), path(reads), emit: read_store_sources
     path 'versions.yml', topic: versions
 
     script:
@@ -23,8 +23,7 @@ process MAP_READS_WITH_MINIMAP2 {
         -x ${alignment.preset} \\
         ${fasta}
     stream_mapping_reads.py \\
-        ${input_args} \\
-        --collisions ${collisions} | \\
+        ${input_args} | \\
     minimap2 \\
         -ax ${alignment.preset} \\
         --frag=no \\
@@ -35,7 +34,7 @@ process MAP_READS_WITH_MINIMAP2 {
         ${prefix}.mmi - | \\
     samtools sort -@ ${task.cpus} -o ${prefix}.bam
     samtools index -@ ${task.cpus} -c ${prefix}.bam
-    TOTAL_READS="\$(cat ${read_count})"
+    TOTAL_READS="\$(samtools view -c -F 2304 ${prefix}.bam)"
     MAPPED_READS="\$(samtools view -c -F 2308 ${prefix}.bam)"
     printf '{"total_reads": %s, "mapped_reads": %s, "unmapped_reads": %s}\\n' \\
         "\${TOTAL_READS}" "\${MAPPED_READS}" "\$(( TOTAL_READS - MAPPED_READS ))" > ${prefix}.counts.json

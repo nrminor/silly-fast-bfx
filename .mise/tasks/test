@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-#MISE description="Run the nf-test suite"
+#MISE description="Run Python unit tests and the nf-test suite"
 set -euo pipefail
 
 # Keep network-dependent tests under tests/remote opt-in.
+mise run test-python
 pixi run --environment dev nf-test test tests/*.nf.test

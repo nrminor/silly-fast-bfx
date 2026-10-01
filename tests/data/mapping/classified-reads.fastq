@@ -12,11 +12,11 @@ GGGGGG
 AAAAAA
 +
 654321
-@same mate-one
+@same 1:mate-one
 TTTTTT
 +mate one plus
 !!!!!!
-@same mate-two
+@same 2:mate-two
 CCCCCC
 +mate two plus
 ######

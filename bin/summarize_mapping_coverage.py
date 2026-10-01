@@ -32,6 +32,7 @@ BLOCK_SCHEMA = {
 PLACEMENT_SCHEMA = {
     "qname": pl.String,
     "reference_id": pl.String,
+    "is_primary": pl.Boolean,
 }
 REFERENCE_SCHEMA = {
     "reference_id": pl.String,
@@ -146,11 +147,12 @@ def cigar_blocks(read: pysam.AlignedSegment) -> Iterator[tuple[str, str, int, in
             position += length
 
 
-def placement(read: pysam.AlignedSegment) -> tuple[str, str] | None:
+def placement(read: pysam.AlignedSegment) -> tuple[str, str, bool] | None:
     """Return one reported-reference relation even when an alignment covers no bases."""
     if read.is_unmapped or read.query_name is None or read.reference_name is None:
         return None
-    return read.query_name, read.reference_name
+    is_primary = not read.is_secondary and not read.is_supplementary
+    return read.query_name, read.reference_name, is_primary
 
 
 def write_evidence(bam: Path, blocks_output: Path, placements_output: Path) -> None:
@@ -169,7 +171,7 @@ def write_evidence(bam: Path, blocks_output: Path, placements_output: Path) -> N
         blocks_writer.writerow(BLOCK_SCHEMA)
         placements_writer.writerow(PLACEMENT_SCHEMA)
         blocks_batch: list[tuple[str, str, int, int]] = []
-        placements_batch: list[tuple[str, str]] = []
+        placements_batch: list[tuple[str, str, bool]] = []
         for read in alignments.fetch(until_eof=True):
             if relation := placement(read):
                 placements_batch.append(relation)
@@ -245,9 +247,29 @@ def depth_intervals(unioned: pl.LazyFrame) -> pl.LazyFrame:
 
 def distinct_reference_placements(placements: pl.LazyFrame) -> pl.LazyFrame:
     """Label each reported placement by its read's distinct reference count."""
-    return placements.unique().with_columns(
-        pl.len().over("qname").alias("reported_reference_count"),
+    return (
+        placements.select("qname", "reference_id")
+        .unique()
+        .with_columns(
+            pl.len().over("qname").alias("reported_reference_count"),
+        )
     )
+
+
+def ensure_primary_names(placements: pl.LazyFrame) -> None:
+    """Reject repeated mapped primaries before collapsing placements by QNAME."""
+    duplicates = (
+        placements.filter(pl.col("is_primary"))
+        .group_by("qname")
+        .agg(pl.len().alias("primaries"))
+        .filter(pl.col("primaries") > 1)
+        .select("qname")
+        .limit(1)
+        .collect()
+    )
+    if duplicates.height:
+        message = f"Multiple primary mapped records for QNAME {duplicates.item()!r}."
+        raise SystemExit(message)
 
 
 def coverage_views(blocks: pl.LazyFrame, placements: pl.LazyFrame) -> CoverageViews:
@@ -428,6 +450,7 @@ def main() -> None:
     write_references(args.fasta, references_path)
     blocks = pl.scan_csv(blocks_path, separator="\t", schema=BLOCK_SCHEMA)
     placements = pl.scan_csv(placements_path, separator="\t", schema=PLACEMENT_SCHEMA)
+    ensure_primary_names(placements)
     references = pl.scan_csv(references_path, separator="\t", schema=REFERENCE_SCHEMA)
     views = coverage_views(blocks, placements)
     coverage_table(

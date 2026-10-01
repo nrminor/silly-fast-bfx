@@ -2,7 +2,7 @@ process STORE_CLASSIFIED_READS {
     tag "${meta.id}:${meta.read_set}:${meta.deacon_id ?: '-'}:${reference.id}"
 
     input:
-    tuple val(meta), val(reference), path(fasta), path(bam), path(reads, stageAs: 'reads??????/*', arity: '1..*'), path(collisions), path(allowlist)
+    tuple val(meta), val(reference), path(fasta), path(bam), path(reads, stageAs: 'reads??????/*', arity: '1..*'), path(allowlist)
 
     output:
     tuple val(meta), val(reference), path('*.classified-reads.parquet'), emit: stores
@@ -18,7 +18,7 @@ process STORE_CLASSIFIED_READS {
         --bam ${bam} \\
         --fasta ${fasta} \\
         ${input_args} \\
-        --collisions ${collisions} ${allowlist_arg} \\
+        ${allowlist_arg} \\
         --output ${prefix}.classified-reads.parquet \\
         --sample-id ${meta.id} \\
         --mapped-read-set ${read_set_name} \\

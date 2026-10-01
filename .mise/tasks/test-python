@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run focused Python unit tests"
+set -euo pipefail
+
+PYTHONPATH=bin uv run --locked python -m unittest discover -s tests -p 'test_*.py'

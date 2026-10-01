@@ -7,7 +7,6 @@ keywords:
   - sylph
 components:
   - subset_mapping_reference
-  - prepare_mapping_identities
   - map_reads_with_minimap2
   - summarize_mapping_coverage
   - render_mapping_pileups_with_alignoth

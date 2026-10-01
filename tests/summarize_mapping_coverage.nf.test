@@ -73,4 +73,29 @@ nextflow_process {
             )
         }
     }
+
+    test("rejects duplicate mapped primary QNAMEs before collapsing placements") {
+        setup {
+            def source = file("$baseDir/tests/data/mapping/coverage.sam")
+            def repeated = file("$outputDir/repeated.sam")
+            repeated.text = source.text + source.readLines().find { it.startsWith('r1\t0\t') } + '\n'
+            def bam = file("$outputDir/repeated.bam")
+            def unsorted = file("$outputDir/unsorted.bam")
+            assert ['samtools', 'view', '-b', '-o', unsorted.toString(), repeated.toString()].execute().waitFor() == 0
+            assert ['samtools', 'sort', '-o', bam.toString(), unsorted.toString()].execute().waitFor() == 0
+            assert ['samtools', 'index', '-c', bam.toString()].execute().waitFor() == 0
+            file("$outputDir/repeated.counts.json").text = '{"total_reads": 5, "mapped_reads": 4, "unmapped_reads": 1}\n'
+        }
+        when {
+            process {
+                """input[0] = [[id: 'sample-a', read_set: 'input', profile_read_set: 'input'], [id: 'mapping-a'], file("\$baseDir/tests/data/mapping/coverage-reference.fa"), file("\$baseDir/tests/data/mapping/coverage.profile.tsv"), file("$outputDir/repeated.bam"), file("$outputDir/repeated.bam.csi"), file("$outputDir/repeated.counts.json")]"""
+            }
+        }
+        then {
+            assertAll(
+                { assert process.failed },
+                { assert process.stdout.join('\n').contains('Multiple primary mapped records for QNAME') },
+            )
+        }
+    }
 }

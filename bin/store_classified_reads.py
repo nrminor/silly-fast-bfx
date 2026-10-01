@@ -18,7 +18,7 @@ from pathlib import Path
 
 import polars as pl
 import pysam
-from stream_mapping_reads import Collision, read_collisions
+from stream_mapping_reads import mapper_name
 
 BATCH_SIZE = 100_000
 BATCH_BYTES = 8 * 1024 * 1024
@@ -70,7 +70,6 @@ class Args:
     bam: Path
     fasta: Path
     inputs: tuple[Path, ...]
-    collisions: Path
     output: Path
     sample_id: str
     mapped_read_set: str
@@ -96,7 +95,6 @@ def parse_args() -> Args:
     parser.add_argument("--bam", required=True, type=Path)
     parser.add_argument("--fasta", required=True, type=Path)
     parser.add_argument("--input", action="append", required=True, type=Path)
-    parser.add_argument("--collisions", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--sample-id", required=True)
     parser.add_argument("--mapped-read-set", required=True)
@@ -109,7 +107,6 @@ def parse_args() -> Args:
         bam=namespace.bam,
         fasta=namespace.fasta,
         inputs=tuple(namespace.input),
-        collisions=namespace.collisions,
         output=namespace.output,
         sample_id=namespace.sample_id,
         mapped_read_set=namespace.mapped_read_set,
@@ -220,32 +217,17 @@ def fastq_records(path: Path) -> Iterator[FastqRecord]:
 
 def payload_rows(
     inputs: Sequence[Path],
-    collisions: Iterator[Collision],
 ) -> Iterator[PayloadRow]:
     """Stream original record payloads with the exact mapper naming policy."""
-    ordinal = 0
-    collision = next(collisions, None)
     for path in inputs:
         for record in fastq_records(path):
-            tokens = record.header.split(maxsplit=1)
-            if not tokens:
-                message = f"FASTQ record in {path} has an empty header."
-                raise SystemExit(message)
-            mapped_name = tokens[0]
-            if collision is not None and collision.ordinal == ordinal:
-                mapped_name = collision.mapped_name
-                collision = next(collisions, None)
             yield (
-                mapped_name,
+                mapper_name(record.header),
                 record.header,
                 record.sequence,
                 record.quality,
                 record.plus_line,
             )
-            ordinal += 1
-    if collision is not None:
-        message = "Collision metadata does not match the streamed FASTQ records"
-        raise SystemExit(message)
 
 
 def payload_size(row: PayloadRow) -> int:
@@ -263,7 +245,6 @@ def matching_payloads(
 
 def write_matching_payload_batches(
     inputs: Sequence[Path],
-    collisions: Iterator[Collision],
     needed_reads: pl.DataFrame,
     directory: Path,
 ) -> None:
@@ -276,7 +257,7 @@ def write_matching_payload_batches(
     batch: list[PayloadRow] = []
     batch_bytes = 0
     index = 0
-    for row in payload_rows(inputs, collisions):
+    for row in payload_rows(inputs):
         batch.append(row)
         batch_bytes += payload_size(row)
         if len(batch) >= BATCH_SIZE or batch_bytes >= BATCH_BYTES:
@@ -335,7 +316,21 @@ def ensure_payload_integrity(
     alignments: pl.LazyFrame,
     payloads: pl.LazyFrame,
 ) -> None:
-    """Reject classified reads that would silently lose a reported BAM placement."""
+    """Reject missing or ambiguous original payload associations."""
+    duplicates = (
+        payloads.group_by("read_key")
+        .agg(pl.len().alias("records"))
+        .filter(pl.col("records") > 1)
+        .select("read_key")
+        .limit(1)
+        .collect()
+    )
+    if duplicates.height:
+        message = (
+            "Multiple original FASTQ records for retained read key "
+            f"{duplicates.item()!r}."
+        )
+        raise SystemExit(message)
     missing = (
         alignments.join(payloads.select("read_key"), on="read_key", how="anti")
         .select(pl.len().alias("count"))
@@ -383,7 +378,6 @@ def main() -> None:
     needed_reads = retained_alignments.select("read_key").unique().collect()
     write_matching_payload_batches(
         args.inputs,
-        read_collisions(args.collisions),
         needed_reads,
         payload_directory,
     )
